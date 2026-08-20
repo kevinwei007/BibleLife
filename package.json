@@ -1,6 +1,6 @@
 {
   "name": "light-in-the-word",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
@@ -11,7 +11,8 @@
     "start": "vinext start",
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "bible:import": "node scripts/import-cuvt.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",

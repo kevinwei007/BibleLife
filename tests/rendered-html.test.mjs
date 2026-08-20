@@ -27,26 +27,36 @@ test("renders the 微光讀經 initial experience", async () => {
   assert.match(html, /在話語裡，遇見今日的光/);
   assert.match(html, /讀經進度/);
   assert.match(html, /今日小測驗/);
-  assert.match(html, /v0\.1\.2/);
+  assert.match(html, /v0\.2\.0/);
   assert.doesNotMatch(html, /codex-preview|Building your site|react-loading-skeleton|ChatGPT/i);
 });
 
-test("keeps version, metadata, database, and social preview artifacts", async () => {
-  const [version, packageJson, hosting, schema, layout] = await Promise.all([
+test("keeps version, metadata, database, scripture, and social preview artifacts", async () => {
+  const [version, packageJson, hosting, schema, layout, bibleIndex, genesis, importReport, sourceReadme] = await Promise.all([
     readFile(new URL("VERSION", projectRoot), "utf8"),
     readFile(new URL("package.json", projectRoot), "utf8"),
     readFile(new URL(".openai/hosting.json", projectRoot), "utf8"),
     readFile(new URL("db/schema.ts", projectRoot), "utf8"),
     readFile(new URL("app/layout.tsx", projectRoot), "utf8"),
+    readFile(new URL("public/bible/cuvt/index.json", projectRoot), "utf8"),
+    readFile(new URL("public/bible/cuvt/GEN.json", projectRoot), "utf8"),
+    readFile(new URL("data/cuvt-import-report.json", projectRoot), "utf8"),
+    readFile(new URL("data/source/README.md", projectRoot), "utf8"),
   ]);
 
-  assert.equal(version.trim(), "0.1.2");
+  assert.equal(version.trim(), "0.2.0");
   assert.match(packageJson, /"name": "light-in-the-word"/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
   assert.match(hosting, /"d1": "DB"/);
   assert.match(schema, /rewardLedger/);
   assert.match(schema, /idempotencyKey/);
   assert.match(layout, /og\.png/);
+  assert.match(bibleIndex, /"books": 66/);
+  assert.match(bibleIndex, /"chapters": 1189/);
+  assert.match(bibleIndex, /"license": "Public Domain"/);
+  assert.match(genesis, /起初，上帝創造天地/);
+  assert.match(importReport, /01e919ec0f2ea9e22adaa5097340fc4ad18a7976a32f850b2e6434d7884f3e81/);
+  assert.match(sourceReadme, /cmn-cu89t/);
   await access(new URL("public/og.png", projectRoot));
   await assert.rejects(access(new URL("app/_sites-preview/", projectRoot)));
 });

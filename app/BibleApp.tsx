@@ -1,15 +1,39 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Tab = "home" | "progress" | "read" | "quiz" | "collection";
 
 type Book = {
+  code: string;
   name: string;
   short: string;
   chapters: number;
   testament: "舊約" | "新約";
   color: "moss" | "clay" | "gold" | "blue";
+};
+
+type VerseData = {
+  number: string;
+  startVerse: number;
+  endVerse: number;
+  text: string;
+  heading?: string;
+};
+
+type BookData = Omit<Book, "chapters"> & {
+  order: number;
+  sourceTitle: string;
+  chapterCount: number;
+  chapters: Array<{ number: number; verses: VerseData[] }>;
+};
+
+type SavedVerse = {
+  key: string;
+  bookName: string;
+  chapter: number;
+  number: string;
+  text: string;
 };
 
 const oldTestament: Array<[string, string, number]> = [
@@ -35,24 +59,17 @@ const newTestament: Array<[string, string, number]> = [
   ["約翰三書", "約三", 1], ["猶大書", "猶", 1], ["啟示錄", "啟", 22],
 ];
 
+const bookCodes = [
+  "GEN", "EXO", "LEV", "NUM", "DEU", "JOS", "JDG", "RUT", "1SA", "2SA", "1KI", "2KI", "1CH", "2CH", "EZR", "NEH", "EST", "JOB", "PSA", "PRO", "ECC", "SNG", "ISA", "JER", "LAM", "EZK", "DAN", "HOS", "JOL", "AMO", "OBA", "JON", "MIC", "NAM", "HAB", "ZEP", "HAG", "ZEC", "MAL",
+  "MAT", "MRK", "LUK", "JHN", "ACT", "ROM", "1CO", "2CO", "GAL", "EPH", "PHP", "COL", "1TH", "2TH", "1TI", "2TI", "TIT", "PHM", "HEB", "JAS", "1PE", "2PE", "1JN", "2JN", "3JN", "JUD", "REV",
+];
 const colors: Book["color"][] = ["moss", "clay", "gold", "blue"];
-const books: Book[] = [...oldTestament.map((book) => ({ ...toBook(book, "舊約"), color: colors[oldTestament.indexOf(book) % 4] })),
-  ...newTestament.map((book) => ({ ...toBook(book, "新約"), color: colors[(newTestament.indexOf(book) + 1) % 4] }))];
+const books: Book[] = [...oldTestament.map((book) => toBook(book, "舊約")), ...newTestament.map((book) => toBook(book, "新約"))]
+  .map((book, index) => ({ ...book, code: bookCodes[index], color: colors[index % 4] }));
 
 function toBook([name, short, chapters]: [string, string, number], testament: Book["testament"]) {
   return { name, short, chapters, testament };
 }
-
-const demoVerses = [
-  [1, "起初，神創造天地。"],
-  [2, "地是空虛混沌，淵面黑暗；神的靈運行在水面上。"],
-  [3, "神說：要有光，就有了光。"],
-  [4, "神看光是好的，就把光暗分開了。"],
-  [5, "神稱光為晝，稱暗為夜。有晚上，有早晨，這是頭一日。"],
-  [6, "神說：諸水之間要有空氣，將水分為上下。"],
-  [7, "神就造出空氣，將空氣以下的水、空氣以上的水分開了。事就這樣成了。"],
-  [8, "神稱空氣為天。有晚上，有早晨，是第二日。"],
-] as const;
 
 const navItems: Array<{ id: Tab; label: string; mark: string }> = [
   { id: "home", label: "今日", mark: "日" },
@@ -68,9 +85,19 @@ export default function BibleApp() {
   const [tab, setTab] = useState<Tab>("home");
   const [completed, setCompleted] = useState(() => new Set(["創世記-1", "創世記-2", "創世記-3", "創世記-4", "馬太福音-1", "詩篇-1"]));
   const [openBook, setOpenBook] = useState("創世記");
-  const [favorites, setFavorites] = useState(() => new Set<number>([3]));
-  const [highlighted, setHighlighted] = useState(() => new Set<number>([4]));
-  const [activeVerse, setActiveVerse] = useState<number | null>(null);
+  const [testamentFilter, setTestamentFilter] = useState<"全部" | "舊約" | "新約">("全部");
+  const [readerBookCode, setReaderBookCode] = useState("GEN");
+  const [readerChapter, setReaderChapter] = useState(1);
+  const [readerBookData, setReaderBookData] = useState<BookData | null>(null);
+  const [readerLoading, setReaderLoading] = useState(true);
+  const [readerError, setReaderError] = useState("");
+  const [readerFontSize, setReaderFontSize] = useState(21);
+  const [favorites, setFavorites] = useState<Record<string, SavedVerse>>(() => ({
+    "GEN-1-3": { key: "GEN-1-3", bookName: "創世記", chapter: 1, number: "3", text: "上帝說：「要有光」，就有了光。" },
+  }));
+  const [highlighted, setHighlighted] = useState(() => new Set<string>(["GEN-1-4"]));
+  const [activeVerse, setActiveVerse] = useState<string | null>(null);
+  const [insightReference, setInsightReference] = useState("創世記 1:3–4");
   const [note, setNote] = useState("神的話語在混亂裡帶來秩序，也提醒我今天先停下來，看見光。\n");
   const [savedNote, setSavedNote] = useState(true);
   const [quizAnswer, setQuizAnswer] = useState<string | null>(null);
@@ -78,21 +105,41 @@ export default function BibleApp() {
   const [xp, setXp] = useState(68);
   const [toast, setToast] = useState("");
   const [showLogin, setShowLogin] = useState(false);
+  const [showSource, setShowSource] = useState(false);
 
   const totalChapters = 1189;
   const progress = Math.round((completed.size / totalChapters) * 100);
-  const favoriteCount = favorites.size;
+  const favoriteCount = Object.keys(favorites).length;
+  const readerBook = books.find((book) => book.code === readerBookCode) ?? books[0];
+  const currentChapter = readerBookData?.chapters.find((chapter) => chapter.number === readerChapter);
+  const filteredBooks = testamentFilter === "全部" ? books : books.filter((book) => book.testament === testamentFilter);
 
   const today = useMemo(() => new Intl.DateTimeFormat("zh-TW", {
     month: "long", day: "numeric", weekday: "long",
   }).format(new Date()), []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+    fetch(`/bible/cuvt/${readerBookCode}.json`, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json() as Promise<BookData>;
+      })
+      .then((data) => { if (active) setReaderBookData(data); })
+      .catch((error: Error) => {
+        if (active && error.name !== "AbortError") setReaderError("經文載入失敗，請稍後再試。");
+      })
+      .finally(() => { if (active) setReaderLoading(false); });
+    return () => { active = false; controller.abort(); };
+  }, [readerBookCode]);
 
   function notify(message: string) {
     setToast(message);
     window.setTimeout(() => setToast(""), 2400);
   }
 
-  function completeChapter(book = "創世記", chapter = 1) {
+  function completeChapter(book = readerBook.name, chapter = readerChapter) {
     const key = `${book}-${chapter}`;
     if (completed.has(key)) {
       notify("這一章已經完成囉");
@@ -106,18 +153,64 @@ export default function BibleApp() {
     notify("完成一章 · +20 經驗值 · +5 代幣");
   }
 
-  function toggleSet(setter: React.Dispatch<React.SetStateAction<Set<number>>>, verse: number, added: string) {
+  function toggleHighlight(key: string) {
+    const removing = highlighted.has(key);
+    const message = removing ? "已移除劃記" : "已加上劃記";
+    const setter: React.Dispatch<React.SetStateAction<Set<string>>> = setHighlighted;
     setter((current) => {
       const next = new Set(current);
-      if (next.has(verse)) next.delete(verse); else next.add(verse);
+      if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
     setActiveVerse(null);
-    notify(added);
+    notify(message);
+  }
+
+  function toggleFavorite(verse: VerseData) {
+    const key = `${readerBook.code}-${readerChapter}-${verse.number}`;
+    const removing = Boolean(favorites[key]);
+    setFavorites((current) => {
+      const next = { ...current };
+      if (next[key]) delete next[key];
+      else next[key] = { key, bookName: readerBook.name, chapter: readerChapter, number: verse.number, text: verse.text };
+      return next;
+    });
+    setActiveVerse(null);
+    notify(removing ? "已移除金句" : "已加入我的金句");
   }
 
   function selectBook(name: string) {
     setOpenBook(openBook === name ? "" : name);
+  }
+
+  function changeReaderLocation(bookCode: string, chapter: number) {
+    if (bookCode !== readerBookCode) {
+      setReaderLoading(true);
+      setReaderError("");
+      setReaderBookCode(bookCode);
+    }
+    setReaderChapter(chapter);
+    setActiveVerse(null);
+  }
+
+  function openReader(book: Book, chapter: number) {
+    changeReaderLocation(book.code, chapter);
+    setTab("read");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function moveChapter(direction: -1 | 1) {
+    const bookIndex = books.findIndex((book) => book.code === readerBook.code);
+    if (direction === -1 && readerChapter > 1) setReaderChapter(readerChapter - 1);
+    else if (direction === 1 && readerChapter < readerBook.chapters) setReaderChapter(readerChapter + 1);
+    else if (direction === -1 && bookIndex > 0) {
+      const previousBook = books[bookIndex - 1];
+      changeReaderLocation(previousBook.code, previousBook.chapters);
+    } else if (direction === 1 && bookIndex < books.length - 1) {
+      changeReaderLocation(books[bookIndex + 1].code, 1);
+    }
+    setActiveVerse(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   return (
@@ -180,7 +273,7 @@ export default function BibleApp() {
               </article>
 
               <article className="card continue-card">
-                <span className="book-tab">上次讀到</span><p className="eyebrow">創世記</p><h2>第 1 章</h2><p>起初，神創造天地。</p><button className="round-button" onClick={() => setTab("read")} aria-label="繼續閱讀創世記第一章">→</button>
+                <span className="book-tab">上次讀到</span><p className="eyebrow">創世記</p><h2>第 1 章</h2><p>起初，上帝創造天地。</p><button className="round-button" onClick={() => openReader(books[0], 1)} aria-label="繼續閱讀創世記第一章">→</button>
               </article>
 
               <article className="card quiz-card">
@@ -199,9 +292,13 @@ export default function BibleApp() {
         {tab === "progress" && (
           <div className="page content-page">
             <section className="page-title"><div><p className="eyebrow">READING JOURNEY</p><h1>讀經進度</h1><p>點開書卷，標記你已走過的每一章。</p></div><div className="compact-stat"><strong>{completed.size}</strong><span>已讀章節</span></div></section>
-            <div className="testament-switch"><button className="active">全部 66 卷</button><button>舊約 39 卷</button><button>新約 27 卷</button></div>
+            <div className="testament-switch">
+              <button className={testamentFilter === "全部" ? "active" : ""} onClick={() => setTestamentFilter("全部")}>全部 66 卷</button>
+              <button className={testamentFilter === "舊約" ? "active" : ""} onClick={() => setTestamentFilter("舊約")}>舊約 39 卷</button>
+              <button className={testamentFilter === "新約" ? "active" : ""} onClick={() => setTestamentFilter("新約")}>新約 27 卷</button>
+            </div>
             <div className="books-list">
-              {books.map((book) => {
+              {filteredBooks.map((book) => {
                 const count = Array.from(completed).filter((key) => key.startsWith(`${book.name}-`)).length;
                 const isOpen = openBook === book.name;
                 return <article className={`book-row ${isOpen ? "open" : ""}`} key={book.name}>
@@ -213,7 +310,7 @@ export default function BibleApp() {
                   </button>
                   {isOpen && <div className="chapters-grid">{Array.from({ length: book.chapters }, (_, index) => index + 1).map((chapter) => {
                     const done = completed.has(`${book.name}-${chapter}`);
-                    return <button key={chapter} className={done ? "done" : ""} onClick={() => completeChapter(book.name, chapter)} aria-label={`${book.name}第 ${chapter} 章${done ? "，已完成" : ""}`}>{done ? "✓" : chapter}</button>;
+                    return <button key={chapter} className={done ? "done" : ""} onClick={() => openReader(book, chapter)} aria-label={`閱讀${book.name}第 ${chapter} 章${done ? "，已完成" : ""}`}>{done ? "✓" : chapter}</button>;
                   })}</div>}
                 </article>;
               })}
@@ -224,27 +321,48 @@ export default function BibleApp() {
         {tab === "read" && (
           <div className="reader-layout">
             <aside className="reader-aside">
-              <p className="eyebrow">正在閱讀</p><h1>創世記</h1><div className="chapter-selector"><button>‹</button><strong>第 1 章</strong><button>›</button></div>
-              <div className="reader-progress"><span>本卷進度</span><strong>4 / 50</strong><div><i style={{ width: "8%" }} /></div></div>
+              <p className="eyebrow">正在閱讀 · CUVt</p>
+              <label className="reader-select-label">書卷
+                <select value={readerBookCode} onChange={(event) => changeReaderLocation(event.target.value, 1)}>
+                  {books.map((book) => <option value={book.code} key={book.code}>{book.name}</option>)}
+                </select>
+              </label>
+              <h1>{readerBook.name}</h1>
+              <div className="chapter-selector">
+                <button onClick={() => moveChapter(-1)} disabled={readerBook.code === "GEN" && readerChapter === 1} aria-label="上一章">‹</button>
+                <select aria-label="選擇章節" value={readerChapter} onChange={(event) => { setReaderChapter(Number(event.target.value)); setActiveVerse(null); }}>
+                  {Array.from({ length: readerBook.chapters }, (_, index) => index + 1).map((chapter) => <option value={chapter} key={chapter}>第 {chapter} 章</option>)}
+                </select>
+                <button onClick={() => moveChapter(1)} disabled={readerBook.code === "REV" && readerChapter === 22} aria-label="下一章">›</button>
+              </div>
+              <div className="reader-progress"><span>本卷進度</span><strong>{Array.from(completed).filter((key) => key.startsWith(`${readerBook.name}-`)).length} / {readerBook.chapters}</strong><div><i style={{ width: `${(Array.from(completed).filter((key) => key.startsWith(`${readerBook.name}-`)).length / readerBook.chapters) * 100}%` }} /></div></div>
               <p className="reader-hint">提示：桌面可在經節上按右鍵；手機可長按或使用每節旁的選單。</p>
             </aside>
             <article className="scripture-page">
-              <header><div><p className="eyebrow">創世記</p><h1>1</h1></div><div className="reader-tools"><button aria-label="縮小字體">A−</button><button aria-label="放大字體">A＋</button></div></header>
-              <div className="license-note">示範經文節錄 · 正式版全文待確認和合本電子文本授權後匯入</div>
+              <header><div><p className="eyebrow">{readerBook.name}</p><h1>{readerChapter}</h1></div><div className="reader-tools"><button onClick={() => setReaderFontSize((size) => Math.max(17, size - 1))} aria-label="縮小字體">A−</button><button onClick={() => setReaderFontSize((size) => Math.min(29, size + 1))} aria-label="放大字體">A＋</button></div></header>
+              <div className="license-note">新標點和合本 CUVt · Public Domain · <button onClick={() => setShowSource(true)}>經文來源與資料說明</button></div>
               <div className="verses">
-                {demoVerses.map(([number, text]) => <div key={number} className={`verse ${highlighted.has(number) ? "marked" : ""}`} role="button" tabIndex={0} aria-label={`創世記第一章第 ${number} 節`} onKeyDown={(event) => { if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) setActiveVerse(number); }} onContextMenu={(event) => { event.preventDefault(); setActiveVerse(number); }}>
-                  <button className="verse-number" onClick={() => setActiveVerse(activeVerse === number ? null : number)} aria-label={`開啟第 ${number} 節操作`}>{number}</button>
-                  <p>{text}</p>
-                  {favorites.has(number) && <span className="favorite-mark" title="已加入金句">◆</span>}
-                  {activeVerse === number && <div className="verse-menu">
-                    <button onClick={() => toggleSet(setFavorites, number, favorites.has(number) ? "已移除金句" : "已加入我的金句")}>◆ {favorites.has(number) ? "移除金句" : "加入我的金句"}</button>
-                    <button onClick={() => toggleSet(setHighlighted, number, highlighted.has(number) ? "已移除劃記" : "已加上劃記")}>▰ {highlighted.has(number) ? "移除劃記" : "劃記這一節"}</button>
-                    <button onClick={() => { setActiveVerse(null); document.getElementById("insight-editor")?.focus(); }}>✦ 我的亮光</button>
-                  </div>}
-                </div>)}
+                {readerLoading && <p className="reader-status">正在載入經文…</p>}
+                {readerError && <p className="reader-status error">{readerError}</p>}
+                {!readerLoading && !readerError && currentChapter?.verses.map((verse) => {
+                  const verseKey = `${readerBook.code}-${readerChapter}-${verse.number}`;
+                  return <section className="verse-block" key={verseKey}>
+                    {verse.heading && <h2 className="section-title">{verse.heading}</h2>}
+                    <div className={`verse ${highlighted.has(verseKey) ? "marked" : ""}`} role="button" tabIndex={0} aria-label={`${readerBook.name}第 ${readerChapter} 章第 ${verse.number} 節`} onKeyDown={(event) => { if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) setActiveVerse(verseKey); }} onContextMenu={(event) => { event.preventDefault(); setActiveVerse(verseKey); }}>
+                      <button className="verse-number" onClick={() => setActiveVerse(activeVerse === verseKey ? null : verseKey)} aria-label={`開啟第 ${verse.number} 節操作`}>{verse.number}</button>
+                      <p style={{ fontSize: `${readerFontSize}px` }}>{verse.text}</p>
+                      {favorites[verseKey] && <span className="favorite-mark" title="已加入金句">◆</span>}
+                      {activeVerse === verseKey && <div className="verse-menu">
+                        <button onClick={() => toggleFavorite(verse)}>◆ {favorites[verseKey] ? "移除金句" : "加入我的金句"}</button>
+                        <button onClick={() => toggleHighlight(verseKey)}>▰ {highlighted.has(verseKey) ? "移除劃記" : "劃記這一節"}</button>
+                        <button onClick={() => { setInsightReference(`${readerBook.name} ${readerChapter}:${verse.number}`); setActiveVerse(null); document.getElementById("insight-editor")?.focus(); }}>✦ 我的亮光</button>
+                      </div>}
+                    </div>
+                  </section>;
+                })}
               </div>
-              <div className="reader-complete"><div><span>讀完這一章了嗎？</span><p>完成後會記錄進度並獲得獎勵</p></div><button className={completed.has("創世記-1") ? "completed" : ""} onClick={() => completeChapter()}>{completed.has("創世記-1") ? "✓ 已讀完" : "讀完了！"}</button></div>
-              <div className="insight-editor"><div><span className="insight-icon">✦</span><div><p className="eyebrow">我的亮光</p><strong>創世記 1:3–4</strong></div><span className={savedNote ? "save-state saved" : "save-state"}>{savedNote ? "已儲存" : "尚未儲存"}</span></div><textarea id="insight-editor" value={note} onChange={(event) => { setNote(event.target.value); setSavedNote(false); }} aria-label="我的亮光筆記" /><button onClick={() => { setSavedNote(true); notify("亮光筆記已儲存"); }}>儲存亮光</button></div>
+              <div className="reader-complete"><div><span>讀完這一章了嗎？</span><p>完成後會記錄進度並獲得獎勵</p></div><button className={completed.has(`${readerBook.name}-${readerChapter}`) ? "completed" : ""} onClick={() => completeChapter()}>{completed.has(`${readerBook.name}-${readerChapter}`) ? "✓ 已讀完" : "讀完了！"}</button></div>
+              <div className="insight-editor"><div><span className="insight-icon">✦</span><div><p className="eyebrow">我的亮光</p><strong>{insightReference}</strong></div><span className={savedNote ? "save-state saved" : "save-state"}>{savedNote ? "已儲存" : "尚未儲存"}</span></div><textarea id="insight-editor" value={note} onChange={(event) => { setNote(event.target.value); setSavedNote(false); }} aria-label="我的亮光筆記" /><button onClick={() => { setSavedNote(true); notify("亮光筆記已儲存"); }}>儲存亮光</button></div>
             </article>
           </div>
         )}
@@ -274,7 +392,7 @@ export default function BibleApp() {
             <section className="page-title"><div><p className="eyebrow">MY TREASURES</p><h1>我的收藏</h1><p>把曾經觸動你的話語與領受，珍藏在這裡。</p></div><div className="compact-stat"><strong>{favoriteCount + 1}</strong><span>收藏內容</span></div></section>
             <div className="collection-tabs"><button className="active">金句 {favoriteCount}</button><button>劃記 {highlighted.size}</button><button>我的亮光 1</button></div>
             <div className="collection-grid">
-              {Array.from(favorites).map((verse) => <article className="collection-card" key={verse}><div className="collection-meta"><span>◆ 我的金句</span><button onClick={() => toggleSet(setFavorites, verse, "已移除金句")}>移除</button></div><blockquote>{demoVerses.find(([number]) => number === verse)?.[1]}</blockquote><p>創世記 1:{verse}</p></article>)}
+              {Object.values(favorites).map((verse) => <article className="collection-card" key={verse.key}><div className="collection-meta"><span>◆ 我的金句</span><button onClick={() => { setFavorites((current) => { const next = { ...current }; delete next[verse.key]; return next; }); notify("已移除金句"); }}>移除</button></div><blockquote>{verse.text}</blockquote><p>{verse.bookName} {verse.chapter}:{verse.number}</p></article>)}
               <article className="collection-card insight"><div className="collection-meta"><span>✦ 我的亮光</span><small>今天</small></div><p className="note-text">{note}</p><footer>創世記 1:3–4</footer></article>
             </div>
           </div>
@@ -283,10 +401,12 @@ export default function BibleApp() {
 
       <nav className="mobile-nav" aria-label="行動版導覽">{navItems.map((item) => <button key={item.id} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)}><span>{item.mark}</span>{item.label}</button>)}</nav>
 
+      {showSource && <div className="modal-backdrop"><section className="source-modal" role="dialog" aria-modal="true" aria-labelledby="source-title"><button className="modal-close" onClick={() => setShowSource(false)} aria-label="關閉">×</button><p className="eyebrow">SCRIPTURE SOURCE</p><h2 id="source-title">經文版本與資料來源</h2><dl><div><dt>版本</dt><dd>新標點和合本（CUVt）</dd></div><div><dt>資料識別</dt><dd>cmn-cu89t</dd></div><div><dt>授權</dt><dd>Public Domain</dd></div><div><dt>來源</dt><dd><a href="https://ebible.org/bible/details.php?all=1&id=cmn-cu89t" target="_blank" rel="noreferrer">eBible.org 版本說明</a></dd></div><div><dt>完整性</dt><dd>66 卷 · 1,189 章；保留來源中的合併節號與缺節編排，不自行補寫經文。</dd></div></dl><p className="source-note">本網站以 USFM 原始資料產生逐卷經文檔，並保存來源檔案的 SHA-256 校驗值。</p></section></div>}
+
       {showLogin && <div className="modal-backdrop"><section className="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-title"><button className="modal-close" onClick={() => setShowLogin(false)} aria-label="關閉">×</button><span className="brand-seal large">光</span><p className="eyebrow">保存你的讀經旅程</p><h2 id="login-title">帳號功能準備中</h2><p className="modal-copy">目前可以直接體驗網站，不需要登入。正式帳號將提供 Google 與 Email 兩種方式，並用來同步閱讀進度與私人筆記。</p><button className="login-option disabled" disabled><span>G</span> Google 登入 · 即將推出</button><button className="login-option disabled" disabled><span>@</span> Email 登入 · 即將推出</button></section></div>}
 
       {toast && <div className="toast" role="status">{toast}</div>}
-      <span className="version-badge">v0.1.2</span>
+      <span className="version-badge">v0.2.0</span>
     </div>
   );
 }

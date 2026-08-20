@@ -1,0 +1,638 @@
+{
+  "version": {
+    "id": "cmn-cu89t",
+    "abbreviation": "CUVt",
+    "name": "新標點和合本",
+    "englishName": "Chinese Union Version (traditional)",
+    "language": "zh-Hant",
+    "license": "Public Domain",
+    "sourceUrl": "https://ebible.org/bible/details.php?all=1&id=cmn-cu89t",
+    "downloadUrl": "https://ebible.org/Scriptures/cmn-cu89t_usfm.zip",
+    "sourceArchiveSha256": "01e919ec0f2ea9e22adaa5097340fc4ad18a7976a32f850b2e6434d7884f3e81",
+    "sourceFilesDate": "2025-12-12",
+    "generatedAt": "2026-08-20T08:31:20.446Z"
+  },
+  "totals": {
+    "books": 66,
+    "chapters": 1189,
+    "verseRecords": 31021,
+    "verseSlots": 31092,
+    "bridgedVerseRecords": 70,
+    "verseNumberGaps": 11,
+    "chineseCharactersApprox": 1056269
+  },
+  "validation": {
+    "expectedBooks": 66,
+    "expectedChapters": 1189,
+    "verseNumberGaps": [
+      "MAT 18:11–11",
+      "MAT 23:14–14",
+      "MRK 7:16–16",
+      "MRK 15:28–28",
+      "LUK 17:36–36",
+      "LUK 23:17–17",
+      "JHN 5:4–4",
+      "ACT 8:37–37",
+      "ACT 15:34–34",
+      "ACT 24:7–7",
+      "ACT 28:29–29"
+    ],
+    "note": "Verse bridges are preserved as supplied by the eBible USFM source; omitted verse numbers are reported rather than invented."
+  },
+  "books": [
+    {
+      "code": "GEN",
+      "name": "創世記",
+      "short": "創",
+      "testament": "舊約",
+      "order": 1,
+      "chapterCount": 50,
+      "dataUrl": "/bible/cuvt/GEN.json"
+    },
+    {
+      "code": "EXO",
+      "name": "出埃及記",
+      "short": "出",
+      "testament": "舊約",
+      "order": 2,
+      "chapterCount": 40,
+      "dataUrl": "/bible/cuvt/EXO.json"
+    },
+    {
+      "code": "LEV",
+      "name": "利未記",
+      "short": "利",
+      "testament": "舊約",
+      "order": 3,
+      "chapterCount": 27,
+      "dataUrl": "/bible/cuvt/LEV.json"
+    },
+    {
+      "code": "NUM",
+      "name": "民數記",
+      "short": "民",
+      "testament": "舊約",
+      "order": 4,
+      "chapterCount": 36,
+      "dataUrl": "/bible/cuvt/NUM.json"
+    },
+    {
+      "code": "DEU",
+      "name": "申命記",
+      "short": "申",
+      "testament": "舊約",
+      "order": 5,
+      "chapterCount": 34,
+      "dataUrl": "/bible/cuvt/DEU.json"
+    },
+    {
+      "code": "JOS",
+      "name": "約書亞記",
+      "short": "書",
+      "testament": "舊約",
+      "order": 6,
+      "chapterCount": 24,
+      "dataUrl": "/bible/cuvt/JOS.json"
+    },
+    {
+      "code": "JDG",
+      "name": "士師記",
+      "short": "士",
+      "testament": "舊約",
+      "order": 7,
+      "chapterCount": 21,
+      "dataUrl": "/bible/cuvt/JDG.json"
+    },
+    {
+      "code": "RUT",
+      "name": "路得記",
+      "short": "得",
+      "testament": "舊約",
+      "order": 8,
+      "chapterCount": 4,
+      "dataUrl": "/bible/cuvt/RUT.json"
+    },
+    {
+      "code": "1SA",
+      "name": "撒母耳記上",
+      "short": "撒上",
+      "testament": "舊約",
+      "order": 9,
+      "chapterCount": 31,
+      "dataUrl": "/bible/cuvt/1SA.json"
+    },
+    {
+      "code": "2SA",
+      "name": "撒母耳記下",
+      "short": "撒下",
+      "testament": "舊約",
+      "order": 10,
+      "chapterCount": 24,
+      "dataUrl": "/bible/cuvt/2SA.json"
+    },
+    {
+      "code": "1KI",
+      "name": "列王紀上",
+      "short": "王上",
+      "testament": "舊約",
+      "order": 11,
+      "chapterCount": 22,
+      "dataUrl": "/bible/cuvt/1KI.json"
+    },
+    {
+      "code": "2KI",
+      "name": "列王紀下",
+      "short": "王下",
+      "testament": "舊約",
+      "order": 12,
+      "chapterCount": 25,
+      "dataUrl": "/bible/cuvt/2KI.json"
+    },
+    {
+      "code": "1CH",
+      "name": "歷代志上",
+      "short": "代上",
+      "testament": "舊約",
+      "order": 13,
+      "chapterCount": 29,
+      "dataUrl": "/bible/cuvt/1CH.json"
+    },
+    {
+      "code": "2CH",
+      "name": "歷代志下",
+      "short": "代下",
+      "testament": "舊約",
+      "order": 14,
+      "chapterCount": 36,
+      "dataUrl": "/bible/cuvt/2CH.json"
+    },
+    {
+      "code": "EZR",
+      "name": "以斯拉記",
+      "short": "拉",
+      "testament": "舊約",
+      "order": 15,
+      "chapterCount": 10,
+      "dataUrl": "/bible/cuvt/EZR.json"
+    },
+    {
+      "code": "NEH",
+      "name": "尼希米記",
+      "short": "尼",
+      "testament": "舊約",
+      "order": 16,
+      "chapterCount": 13,
+      "dataUrl": "/bible/cuvt/NEH.json"
+    },
+    {
+      "code": "EST",
+      "name": "以斯帖記",
+      "short": "斯",
+      "testament": "舊約",
+      "order": 17,
+      "chapterCount": 10,
+      "dataUrl": "/bible/cuvt/EST.json"
+    },
+    {
+      "code": "JOB",
+      "name": "約伯記",
+      "short": "伯",
+      "testament": "舊約",
+      "order": 18,
+      "chapterCount": 42,
+      "dataUrl": "/bible/cuvt/JOB.json"
+    },
+    {
+      "code": "PSA",
+      "name": "詩篇",
+      "short": "詩",
+      "testament": "舊約",
+      "order": 19,
+      "chapterCount": 150,
+      "dataUrl": "/bible/cuvt/PSA.json"
+    },
+    {
+      "code": "PRO",
+      "name": "箴言",
+      "short": "箴",
+      "testament": "舊約",
+      "order": 20,
+      "chapterCount": 31,
+      "dataUrl": "/bible/cuvt/PRO.json"
+    },
+    {
+      "code": "ECC",
+      "name": "傳道書",
+      "short": "傳",
+      "testament": "舊約",
+      "order": 21,
+      "chapterCount": 12,
+      "dataUrl": "/bible/cuvt/ECC.json"
+    },
+    {
+      "code": "SNG",
+      "name": "雅歌",
+      "short": "歌",
+      "testament": "舊約",
+      "order": 22,
+      "chapterCount": 8,
+      "dataUrl": "/bible/cuvt/SNG.json"
+    },
+    {
+      "code": "ISA",
+      "name": "以賽亞書",
+      "short": "賽",
+      "testament": "舊約",
+      "order": 23,
+      "chapterCount": 66,
+      "dataUrl": "/bible/cuvt/ISA.json"
+    },
+    {
+      "code": "JER",
+      "name": "耶利米書",
+      "short": "耶",
+      "testament": "舊約",
+      "order": 24,
+      "chapterCount": 52,
+      "dataUrl": "/bible/cuvt/JER.json"
+    },
+    {
+      "code": "LAM",
+      "name": "耶利米哀歌",
+      "short": "哀",
+      "testament": "舊約",
+      "order": 25,
+      "chapterCount": 5,
+      "dataUrl": "/bible/cuvt/LAM.json"
+    },
+    {
+      "code": "EZK",
+      "name": "以西結書",
+      "short": "結",
+      "testament": "舊約",
+      "order": 26,
+      "chapterCount": 48,
+      "dataUrl": "/bible/cuvt/EZK.json"
+    },
+    {
+      "code": "DAN",
+      "name": "但以理書",
+      "short": "但",
+      "testament": "舊約",
+      "order": 27,
+      "chapterCount": 12,
+      "dataUrl": "/bible/cuvt/DAN.json"
+    },
+    {
+      "code": "HOS",
+      "name": "何西阿書",
+      "short": "何",
+      "testament": "舊約",
+      "order": 28,
+      "chapterCount": 14,
+      "dataUrl": "/bible/cuvt/HOS.json"
+    },
+    {
+      "code": "JOL",
+      "name": "約珥書",
+      "short": "珥",
+      "testament": "舊約",
+      "order": 29,
+      "chapterCount": 3,
+      "dataUrl": "/bible/cuvt/JOL.json"
+    },
+    {
+      "code": "AMO",
+      "name": "阿摩司書",
+      "short": "摩",
+      "testament": "舊約",
+      "order": 30,
+      "chapterCount": 9,
+      "dataUrl": "/bible/cuvt/AMO.json"
+    },
+    {
+      "code": "OBA",
+      "name": "俄巴底亞書",
+      "short": "俄",
+      "testament": "舊約",
+      "order": 31,
+      "chapterCount": 1,
+      "dataUrl": "/bible/cuvt/OBA.json"
+    },
+    {
+      "code": "JON",
+      "name": "約拿書",
+      "short": "拿",
+      "testament": "舊約",
+      "order": 32,
+      "chapterCount": 4,
+      "dataUrl": "/bible/cuvt/JON.json"
+    },
+    {
+      "code": "MIC",
+      "name": "彌迦書",
+      "short": "彌",
+      "testament": "舊約",
+      "order": 33,
+      "chapterCount": 7,
+      "dataUrl": "/bible/cuvt/MIC.json"
+    },
+    {
+      "code": "NAM",
+      "name": "那鴻書",
+      "short": "鴻",
+      "testament": "舊約",
+      "order": 34,
+      "chapterCount": 3,
+      "dataUrl": "/bible/cuvt/NAM.json"
+    },
+    {
+      "code": "HAB",
+      "name": "哈巴谷書",
+      "short": "哈",
+      "testament": "舊約",
+      "order": 35,
+      "chapterCount": 3,
+      "dataUrl": "/bible/cuvt/HAB.json"
+    },
+    {
+      "code": "ZEP",
+      "name": "西番雅書",
+      "short": "番",
+      "testament": "舊約",
+      "order": 36,
+      "chapterCount": 3,
+      "dataUrl": "/bible/cuvt/ZEP.json"
+    },
+    {
+      "code": "HAG",
+      "name": "哈該書",
+      "short": "該",
+      "testament": "舊約",
+      "order": 37,
+      "chapterCount": 2,
+      "dataUrl": "/bible/cuvt/HAG.json"
+    },
+    {
+      "code": "ZEC",
+      "name": "撒迦利亞書",
+      "short": "亞",
+      "testament": "舊約",
+      "order": 38,
+      "chapterCount": 14,
+      "dataUrl": "/bible/cuvt/ZEC.json"
+    },
+    {
+      "code": "MAL",
+      "name": "瑪拉基書",
+      "short": "瑪",
+      "testament": "舊約",
+      "order": 39,
+      "chapterCount": 4,
+      "dataUrl": "/bible/cuvt/MAL.json"
+    },
+    {
+      "code": "MAT",
+      "name": "馬太福音",
+      "short": "太",
+      "testament": "新約",
+      "order": 40,
+      "chapterCount": 28,
+      "dataUrl": "/bible/cuvt/MAT.json"
+    },
+    {
+      "code": "MRK",
+      "name": "馬可福音",
+      "short": "可",
+      "testament": "新約",
+      "order": 41,
+      "chapterCount": 16,
+      "dataUrl": "/bible/cuvt/MRK.json"
+    },
+    {
+      "code": "LUK",
+      "name": "路加福音",
+      "short": "路",
+      "testament": "新約",
+      "order": 42,
+      "chapterCount": 24,
+      "dataUrl": "/bible/cuvt/LUK.json"
+    },
+    {
+      "code": "JHN",
+      "name": "約翰福音",
+      "short": "約",
+      "testament": "新約",
+      "order": 43,
+      "chapterCount": 21,
+      "dataUrl": "/bible/cuvt/JHN.json"
+    },
+    {
+      "code": "ACT",
+      "name": "使徒行傳",
+      "short": "徒",
+      "testament": "新約",
+      "order": 44,
+      "chapterCount": 28,
+      "dataUrl": "/bible/cuvt/ACT.json"
+    },
+    {
+      "code": "ROM",
+      "name": "羅馬書",
+      "short": "羅",
+      "testament": "新約",
+      "order": 45,
+      "chapterCount": 16,
+      "dataUrl": "/bible/cuvt/ROM.json"
+    },
+    {
+      "code": "1CO",
+      "name": "哥林多前書",
+      "short": "林前",
+      "testament": "新約",
+      "order": 46,
+      "chapterCount": 16,
+      "dataUrl": "/bible/cuvt/1CO.json"
+    },
+    {
+      "code": "2CO",
+      "name": "哥林多後書",
+      "short": "林後",
+      "testament": "新約",
+      "order": 47,
+      "chapterCount": 13,
+      "dataUrl": "/bible/cuvt/2CO.json"
+    },
+    {
+      "code": "GAL",
+      "name": "加拉太書",
+      "short": "加",
+      "testament": "新約",
+      "order": 48,
+      "chapterCount": 6,
+      "dataUrl": "/bible/cuvt/GAL.json"
+    },
+    {
+      "code": "EPH",
+      "name": "以弗所書",
+      "short": "弗",
+      "testament": "新約",
+      "order": 49,
+      "chapterCount": 6,
+      "dataUrl": "/bible/cuvt/EPH.json"
+    },
+    {
+      "code": "PHP",
+      "name": "腓立比書",
+      "short": "腓",
+      "testament": "新約",
+      "order": 50,
+      "chapterCount": 4,
+      "dataUrl": "/bible/cuvt/PHP.json"
+    },
+    {
+      "code": "COL",
+      "name": "歌羅西書",
+      "short": "西",
+      "testament": "新約",
+      "order": 51,
+      "chapterCount": 4,
+      "dataUrl": "/bible/cuvt/COL.json"
+    },
+    {
+      "code": "1TH",
+      "name": "帖撒羅尼迦前書",
+      "short": "帖前",
+      "testament": "新約",
+      "order": 52,
+      "chapterCount": 5,
+      "dataUrl": "/bible/cuvt/1TH.json"
+    },
+    {
+      "code": "2TH",
+      "name": "帖撒羅尼迦後書",
+      "short": "帖後",
+      "testament": "新約",
+      "order": 53,
+      "chapterCount": 3,
+      "dataUrl": "/bible/cuvt/2TH.json"
+    },
+    {
+      "code": "1TI",
+      "name": "提摩太前書",
+      "short": "提前",
+      "testament": "新約",
+      "order": 54,
+      "chapterCount": 6,
+      "dataUrl": "/bible/cuvt/1TI.json"
+    },
+    {
+      "code": "2TI",
+      "name": "提摩太後書",
+      "short": "提後",
+      "testament": "新約",
+      "order": 55,
+      "chapterCount": 4,
+      "dataUrl": "/bible/cuvt/2TI.json"
+    },
+    {
+      "code": "TIT",
+      "name": "提多書",
+      "short": "多",
+      "testament": "新約",
+      "order": 56,
+      "chapterCount": 3,
+      "dataUrl": "/bible/cuvt/TIT.json"
+    },
+    {
+      "code": "PHM",
+      "name": "腓利門書",
+      "short": "門",
+      "testament": "新約",
+      "order": 57,
+      "chapterCount": 1,
+      "dataUrl": "/bible/cuvt/PHM.json"
+    },
+    {
+      "code": "HEB",
+      "name": "希伯來書",
+      "short": "來",
+      "testament": "新約",
+      "order": 58,
+      "chapterCount": 13,
+      "dataUrl": "/bible/cuvt/HEB.json"
+    },
+    {
+      "code": "JAS",
+      "name": "雅各書",
+      "short": "雅",
+      "testament": "新約",
+      "order": 59,
+      "chapterCount": 5,
+      "dataUrl": "/bible/cuvt/JAS.json"
+    },
+    {
+      "code": "1PE",
+      "name": "彼得前書",
+      "short": "彼前",
+      "testament": "新約",
+      "order": 60,
+      "chapterCount": 5,
+      "dataUrl": "/bible/cuvt/1PE.json"
+    },
+    {
+      "code": "2PE",
+      "name": "彼得後書",
+      "short": "彼後",
+      "testament": "新約",
+      "order": 61,
+      "chapterCount": 3,
+      "dataUrl": "/bible/cuvt/2PE.json"
+    },
+    {
+      "code": "1JN",
+      "name": "約翰一書",
+      "short": "約一",
+      "testament": "新約",
+      "order": 62,
+      "chapterCount": 5,
+      "dataUrl": "/bible/cuvt/1JN.json"
+    },
+    {
+      "code": "2JN",
+      "name": "約翰二書",
+      "short": "約二",
+      "testament": "新約",
+      "order": 63,
+      "chapterCount": 1,
+      "dataUrl": "/bible/cuvt/2JN.json"
+    },
+    {
+      "code": "3JN",
+      "name": "約翰三書",
+      "short": "約三",
+      "testament": "新約",
+      "order": 64,
+      "chapterCount": 1,
+      "dataUrl": "/bible/cuvt/3JN.json"
+    },
+    {
+      "code": "JUD",
+      "name": "猶大書",
+      "short": "猶",
+      "testament": "新約",
+      "order": 65,
+      "chapterCount": 1,
+      "dataUrl": "/bible/cuvt/JUD.json"
+    },
+    {
+      "code": "REV",
+      "name": "啟示錄",
+      "short": "啟",
+      "testament": "新約",
+      "order": 66,
+      "chapterCount": 22,
+      "dataUrl": "/bible/cuvt/REV.json"
+    }
+  ]
+}

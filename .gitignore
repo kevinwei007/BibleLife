@@ -38,3 +38,6 @@ yarn-error.log*
 /.wrangler/
 /outputs/
 /work/
+
+# generated from the retained eBible USFM source archive
+/data/source/cuvt-usfm/
