@@ -1,0 +1,27 @@
+{
+  "generatedAt": "2026-08-20T10:04:55.166Z",
+  "source": "eBible CUVt + 測驗卷主題.txt",
+  "topicCount": 98,
+  "questionCount": 490,
+  "questionTypes": {
+    "經文辨識": 294,
+    "出處辨識": 196
+  },
+  "sections": {
+    "四福音書": 40,
+    "摩西五經": 40,
+    "歷史書": 75,
+    "使徒行傳": 10,
+    "保羅書信": 75,
+    "詩歌智慧書": 65,
+    "大先知書": 70,
+    "小先知書": 65,
+    "普通書信": 40,
+    "啟示文學": 10
+  },
+  "validation": {
+    "fourDistinctOptions": true,
+    "correctIndexInRange": true,
+    "referencesExistInCuvt": true
+  }
+}

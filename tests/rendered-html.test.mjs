@@ -27,7 +27,7 @@ test("renders the 微光讀經 initial experience", async () => {
   assert.match(html, /在話語裡，遇見今日的光/);
   assert.match(html, /讀經進度/);
   assert.match(html, /今日小測驗/);
-  assert.match(html, /v0\.3\.0/);
+  assert.match(html, /v0\.4\.0/);
   assert.match(html, /如有違反版權，請來信告知，會盡速處理/);
   assert.match(html, /kevin770726@gmail\.com/);
   assert.doesNotMatch(html, /codex-preview|Building your site|react-loading-skeleton|ChatGPT/i);
@@ -46,7 +46,7 @@ test("keeps version, metadata, database, scripture, and social preview artifacts
     readFile(new URL("data/source/README.md", projectRoot), "utf8"),
   ]);
 
-  assert.equal(version.trim(), "0.3.0");
+  assert.equal(version.trim(), "0.4.0");
   assert.match(packageJson, /"name": "light-in-the-word"/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
   assert.match(hosting, /"d1": "DB"/);
@@ -61,6 +61,33 @@ test("keeps version, metadata, database, scripture, and social preview artifacts
   assert.match(sourceReadme, /cmn-cu89t/);
   await access(new URL("public/og.png", projectRoot));
   await assert.rejects(access(new URL("app/_sites-preview/", projectRoot)));
+});
+
+test("keeps the validated quiz bank, quiz APIs, and protected question editor", async () => {
+  const [bankText, reportText, schema, migration, questionRoute, adminRoute, app] = await Promise.all([
+    readFile(new URL("data/quiz-bank.json", projectRoot), "utf8"),
+    readFile(new URL("data/quiz-bank-report.json", projectRoot), "utf8"),
+    readFile(new URL("db/schema.ts", projectRoot), "utf8"),
+    readFile(new URL("drizzle/0002_perfect_the_fury.sql", projectRoot), "utf8"),
+    readFile(new URL("app/api/quiz/questions/route.ts", projectRoot), "utf8"),
+    readFile(new URL("app/api/admin/questions/route.ts", projectRoot), "utf8"),
+    readFile(new URL("app/BibleApp.tsx", projectRoot), "utf8"),
+  ]);
+  const bank = JSON.parse(bankText);
+  const report = JSON.parse(reportText);
+
+  assert.equal(bank.topics.length, 98);
+  assert.equal(bank.questions.length, 490);
+  assert.equal(report.validation.referencesExistInCuvt, true);
+  assert.ok(bank.questions.every((question) => question.options.length === 4 && new Set(question.options).size === 4));
+  assert.match(schema, /quizQuestions/);
+  assert.equal((migration.match(/INSERT INTO quiz_questions/g) ?? []).length, 490);
+  assert.match(migration, /PRAGMA optimize/);
+  assert.match(questionRoute, /ORDER BY RANDOM\(\)/);
+  assert.match(adminRoute, /requireAdmin/);
+  assert.match(adminRoute, /export async function PUT/);
+  assert.match(app, /題庫管理/);
+  assert.match(app, /單卷／分卷/);
 });
 
 test("keeps Google authentication, durable state, and protected admin routes", async () => {

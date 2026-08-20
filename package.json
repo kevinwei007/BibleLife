@@ -1,6 +1,6 @@
 {
   "name": "light-in-the-word",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
@@ -12,7 +12,9 @@
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
-    "bible:import": "node scripts/import-cuvt.mjs"
+    "bible:import": "node scripts/import-cuvt.mjs",
+    "quiz:generate": "node scripts/generate-quiz-bank.mjs",
+    "quiz:verify": "node scripts/verify-quiz-migration.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",

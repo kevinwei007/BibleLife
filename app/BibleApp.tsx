@@ -50,6 +50,35 @@ type AdminUser = AuthUser & {
   lastLoginAt: string | null;
 };
 
+type QuizQuestion = {
+  id: string;
+  topicCode: string;
+  topicTitle: string;
+  bookName: string;
+  testament: string;
+  section: string;
+  questionType: "經文辨識" | "出處辨識" | "內容理解";
+  question: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+  reference: string;
+  difficulty: "easy" | "medium" | "hard";
+};
+
+type QuizTopic = { code: string; title: string; bookName: string; testament: string; questionCount: number };
+type QuizTheme = { code: string; label: string; questionCount: number };
+type QuizMode = "topic" | "mixed" | "theme";
+
+type AdminQuestion = QuizQuestion & {
+  bookCodes: string;
+  chapterStart: number;
+  chapterEnd: number;
+  status: "active" | "draft" | "disabled";
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 type PersistedState = {
   completed: string[];
   favorites: Record<string, SavedVerse>;
@@ -118,7 +147,25 @@ const navItems: Array<{ id: Tab; label: string; mark: string }> = [
   { id: "collection", label: "收藏", mark: "藏" },
 ];
 
-const quizOptions = ["挪亞", "亞伯拉罕", "摩西", "大衛"];
+const emptyAdminQuestion: AdminQuestion = {
+  id: "",
+  topicCode: "custom",
+  topicTitle: "自訂測驗",
+  bookCodes: "GEN",
+  bookName: "創世記",
+  testament: "舊約",
+  section: "pentateuch",
+  chapterStart: 1,
+  chapterEnd: 1,
+  questionType: "內容理解",
+  question: "",
+  options: ["", "", "", ""],
+  correctIndex: 0,
+  explanation: "",
+  reference: "",
+  difficulty: "medium",
+  status: "draft",
+};
 
 export default function BibleApp() {
   const [tab, setTab] = useState<Tab>("home");
@@ -141,7 +188,20 @@ export default function BibleApp() {
   const [insightReference, setInsightReference] = useState("創世記 1:3–4");
   const [note, setNote] = useState("神的話語在混亂裡帶來秩序，也提醒我今天先停下來，看見光。\n");
   const [savedNote, setSavedNote] = useState(true);
-  const [quizAnswer, setQuizAnswer] = useState<string | null>(null);
+  const [quizMode, setQuizMode] = useState<QuizMode>("topic");
+  const [quizTopics, setQuizTopics] = useState<QuizTopic[]>([]);
+  const [quizThemes, setQuizThemes] = useState<QuizTheme[]>([]);
+  const [quizTotal, setQuizTotal] = useState(0);
+  const [quizTopic, setQuizTopic] = useState("01-1");
+  const [quizScope, setQuizScope] = useState("ALL");
+  const [quizTheme, setQuizTheme] = useState("gospels");
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
+  const [quizIndex, setQuizIndex] = useState(0);
+  const [quizAnswer, setQuizAnswer] = useState<number | null>(null);
+  const [quizScore, setQuizScore] = useState(0);
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [quizError, setQuizError] = useState("");
+  const [quizFinished, setQuizFinished] = useState(false);
   const [coins, setCoins] = useState(120);
   const [xp, setXp] = useState(68);
   const [toast, setToast] = useState("");
@@ -155,6 +215,12 @@ export default function BibleApp() {
   const [syncState, setSyncState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [adminLoading, setAdminLoading] = useState(false);
+  const [adminSection, setAdminSection] = useState<"users" | "questions">("users");
+  const [adminQuestions, setAdminQuestions] = useState<AdminQuestion[]>([]);
+  const [adminQuestionLoading, setAdminQuestionLoading] = useState(false);
+  const [adminQuestionSearch, setAdminQuestionSearch] = useState("");
+  const [editingQuestion, setEditingQuestion] = useState<AdminQuestion | null>(null);
+  const [adminSaving, setAdminSaving] = useState(false);
 
   const totalChapters = 1189;
   const progress = Math.round((completed.size / totalChapters) * 100);
@@ -162,6 +228,13 @@ export default function BibleApp() {
   const readerBook = books.find((book) => book.code === readerBookCode) ?? books[0];
   const currentChapter = readerBookData?.chapters.find((chapter) => chapter.number === readerChapter);
   const filteredBooks = testamentFilter === "全部" ? books : books.filter((book) => book.testament === testamentFilter);
+  const currentQuizQuestion = quizQuestions[quizIndex];
+  const filteredAdminQuestions = useMemo(() => {
+    const query = adminQuestionSearch.trim().toLowerCase();
+    if (!query) return adminQuestions;
+    return adminQuestions.filter((question) => [question.topicCode, question.topicTitle, question.bookName, question.question, question.reference]
+      .some((value) => value.toLowerCase().includes(query)));
+  }, [adminQuestionSearch, adminQuestions]);
 
   const today = useMemo(() => new Intl.DateTimeFormat("zh-TW", {
     month: "long", day: "numeric", weekday: "long",
@@ -311,7 +384,28 @@ export default function BibleApp() {
   }, [authUser, showLogin]);
 
   useEffect(() => {
-    if (tab !== "admin" || !authUser?.isAdmin) return;
+    if (tab !== "quiz" || quizTopics.length) return;
+    let active = true;
+    fetch("/api/quiz/catalog", { cache: "no-store" })
+      .then(async (response) => {
+        const result = await response.json() as { topics?: QuizTopic[]; themes?: QuizTheme[]; totalQuestions?: number; error?: string };
+        if (!response.ok) throw new Error(result.error ?? "讀取題庫失敗");
+        return result;
+      })
+      .then((result) => {
+        if (!active) return;
+        setQuizTopics(result.topics ?? []);
+        setQuizThemes(result.themes ?? []);
+        setQuizTotal(result.totalQuestions ?? 0);
+        if (result.topics?.length && !result.topics.some((topic) => topic.code === quizTopic)) setQuizTopic(result.topics[0].code);
+        if (result.themes?.length && !result.themes.some((theme) => theme.code === quizTheme)) setQuizTheme(result.themes[0].code);
+      })
+      .catch((error: Error) => { if (active) setQuizError(error.message); });
+    return () => { active = false; };
+  }, [quizTheme, quizTopic, quizTopics.length, tab]);
+
+  useEffect(() => {
+    if (tab !== "admin" || adminSection !== "users" || !authUser?.isAdmin) return;
     let active = true;
     fetch("/api/admin/users", { cache: "no-store" })
       .then(async (response) => {
@@ -323,7 +417,22 @@ export default function BibleApp() {
       .catch((error: Error) => { if (active) notify(error.message); })
       .finally(() => { if (active) setAdminLoading(false); });
     return () => { active = false; };
-  }, [authUser, tab]);
+  }, [adminSection, authUser, tab]);
+
+  useEffect(() => {
+    if (tab !== "admin" || adminSection !== "questions" || !authUser?.isAdmin || adminQuestions.length) return;
+    let active = true;
+    fetch("/api/admin/questions", { cache: "no-store" })
+      .then(async (response) => {
+        const result = await response.json() as { questions?: AdminQuestion[]; error?: string };
+        if (!response.ok) throw new Error(result.error ?? "讀取題庫失敗");
+        return result.questions ?? [];
+      })
+      .then((questions) => { if (active) setAdminQuestions(questions); })
+      .catch((error: Error) => { if (active) notify(error.message); })
+      .finally(() => { if (active) setAdminQuestionLoading(false); });
+    return () => { active = false; };
+  }, [adminQuestions.length, adminSection, authUser, tab]);
 
   function notify(message: string) {
     setToast(message);
@@ -353,6 +462,106 @@ export default function BibleApp() {
     }
     setAdminUsers((current) => current.filter((item) => item.id !== user.id));
     notify("使用者帳號與保存資料已刪除");
+  }
+
+  function resetQuiz() {
+    setQuizQuestions([]);
+    setQuizIndex(0);
+    setQuizAnswer(null);
+    setQuizScore(0);
+    setQuizFinished(false);
+    setQuizError("");
+  }
+
+  function changeQuizMode(mode: QuizMode) {
+    setQuizMode(mode);
+    resetQuiz();
+  }
+
+  async function startQuiz() {
+    setQuizLoading(true);
+    setQuizError("");
+    const parameters = new URLSearchParams({ mode: quizMode, limit: "5" });
+    if (quizMode === "topic") parameters.set("topicCode", quizTopic);
+    if (quizMode === "mixed") parameters.set("scope", quizScope);
+    if (quizMode === "theme") parameters.set("section", quizTheme);
+    try {
+      const response = await fetch(`/api/quiz/questions?${parameters}`, { cache: "no-store" });
+      const result = await response.json() as { questions?: QuizQuestion[]; error?: string };
+      if (!response.ok || !result.questions?.length) throw new Error(result.error ?? "這個範圍目前沒有題目");
+      setQuizQuestions(result.questions);
+      setQuizIndex(0);
+      setQuizAnswer(null);
+      setQuizScore(0);
+      setQuizFinished(false);
+    } catch (error) {
+      setQuizError(error instanceof Error ? error.message : "無法開始測驗");
+    } finally {
+      setQuizLoading(false);
+    }
+  }
+
+  function chooseQuizAnswer(index: number) {
+    if (quizAnswer !== null || !currentQuizQuestion) return;
+    setQuizAnswer(index);
+    if (index === currentQuizQuestion.correctIndex) setQuizScore((score) => score + 1);
+  }
+
+  async function nextQuizQuestion() {
+    if (quizIndex < quizQuestions.length - 1) {
+      setQuizIndex((index) => index + 1);
+      setQuizAnswer(null);
+      return;
+    }
+    setQuizFinished(true);
+    if (!authUser) return;
+    const templateCode = quizMode === "topic" ? `topic:${quizTopic}` : quizMode === "theme" ? `theme:${quizTheme}` : `mixed:${quizScope}`;
+    fetch("/api/quiz/attempts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ templateCode, score: quizScore, totalQuestions: quizQuestions.length }),
+    }).catch(() => undefined);
+  }
+
+  async function saveAdminQuestion(question: AdminQuestion) {
+    setAdminSaving(true);
+    try {
+      const isExisting = Boolean(question.id);
+      const response = await fetch("/api/admin/questions", {
+        method: isExisting ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(question),
+      });
+      const result = await response.json() as { question?: AdminQuestion; error?: string };
+      if (!response.ok || !result.question) throw new Error(result.error ?? "儲存題目失敗");
+      setAdminQuestions((questions) => isExisting
+        ? questions.map((item) => item.id === result.question?.id ? result.question : item)
+        : [result.question!, ...questions]);
+      setEditingQuestion(null);
+      setQuizTopics([]);
+      notify(isExisting ? "題目已更新" : "題目已新增");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "儲存題目失敗");
+    } finally {
+      setAdminSaving(false);
+    }
+  }
+
+  async function deleteAdminQuestion(question: AdminQuestion) {
+    if (!window.confirm(`確定要刪除「${question.question}」嗎？此操作無法復原。`)) return;
+    const response = await fetch("/api/admin/questions", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: question.id }),
+    });
+    const result = await response.json() as { error?: string };
+    if (!response.ok) {
+      notify(result.error ?? "刪除題目失敗");
+      return;
+    }
+    setAdminQuestions((questions) => questions.filter((item) => item.id !== question.id));
+    setQuizTopics([]);
+    notify("題目已刪除");
   }
 
   function completeChapter(book = readerBook.name, chapter = readerChapter) {
@@ -603,20 +812,37 @@ export default function BibleApp() {
 
         {tab === "quiz" && (
           <div className="page content-page quiz-page-main">
-            <section className="page-title"><div><p className="eyebrow">BIBLE QUIZ</p><h1>聖經知識測驗</h1><p>每一次回想，都讓讀過的話語更深地留下來。</p></div><div className="quiz-score-badge"><strong>82</strong><span>歷史平均</span></div></section>
+            <section className="page-title"><div><p className="eyebrow">BIBLE QUIZ</p><h1>聖經知識測驗</h1><p>每一題都附上和合本經文依據，答完即可核對與複習。</p></div><div className="quiz-score-badge"><strong>{quizTotal || "—"}</strong><span>已發布題目</span></div></section>
             <div className="quiz-layout">
               <section className="quiz-main-card">
-                <div className="quiz-topline"><span>創世記（一）· 1–25 章</span><span>第 1 / 5 題</span></div><div className="quiz-line"><i /></div>
-                <p className="question-kicker">單選題</p><h2>神呼召誰離開本地、本族、父家，往祂所要指示的地去？</h2>
-                <div className="options">{quizOptions.map((option, index) => {
-                  const answered = quizAnswer !== null;
-                  const correct = option === "亞伯拉罕";
-                  const selected = quizAnswer === option;
-                  return <button key={option} className={`${selected ? "selected" : ""} ${answered && correct ? "correct" : ""} ${answered && selected && !correct ? "wrong" : ""}`} onClick={() => setQuizAnswer(option)} disabled={answered}><span>{String.fromCharCode(65 + index)}</span>{option}{answered && correct && <b>✓</b>}</button>;
-                })}</div>
-                {quizAnswer && <div className={`answer-note ${quizAnswer === "亞伯拉罕" ? "right" : "try"}`}><strong>{quizAnswer === "亞伯拉罕" ? "答對了！" : "再複習一次"}</strong><p>神呼召亞伯蘭離開本地，並應許使他成為大國。經文依據：創世記 12:1–2。</p><button onClick={() => setQuizAnswer(null)}>下一題 →</button></div>}
+                {!quizQuestions.length && !quizFinished && <div className="quiz-setup">
+                  <p className="question-kicker">建立測驗</p><h2>{quizMode === "topic" ? "選擇一份分卷測驗" : quizMode === "mixed" ? "設定綜合測驗範圍" : "選擇聖經主題分類"}</h2>
+                  {quizMode === "topic" && <label><span>測驗卷範圍</span><select value={quizTopic} onChange={(event) => setQuizTopic(event.target.value)}>{quizTopics.map((topic) => <option key={topic.code} value={topic.code}>{topic.code} · {topic.title}（{topic.questionCount} 題）</option>)}</select></label>}
+                  {quizMode === "mixed" && <label><span>隨機範圍</span><select value={quizScope} onChange={(event) => setQuizScope(event.target.value)}><option value="ALL">全聖經</option><option value="OT">舊約</option><option value="NT">新約</option></select></label>}
+                  {quizMode === "theme" && <label><span>主題分類</span><select value={quizTheme} onChange={(event) => setQuizTheme(event.target.value)}>{quizThemes.map((theme) => <option key={theme.code} value={theme.code}>{theme.label}（{theme.questionCount} 題）</option>)}</select></label>}
+                  <div className="quiz-setup-meta"><span>5 題</span><span>四選一</span><span>附經文解說</span></div>
+                  {quizError && <p className="quiz-error">{quizError}</p>}
+                  <button className="quiz-start" onClick={startQuiz} disabled={quizLoading || !quizTopics.length}>{quizLoading ? "正在出題…" : "開始測驗"}</button>
+                </div>}
+                {quizFinished && <div className="quiz-result">
+                  <span className="result-seal">{quizScore === quizQuestions.length ? "滿" : "成"}</span>
+                  <p className="question-kicker">測驗完成</p><h2>{quizScore} / {quizQuestions.length} 題答對</h2>
+                  <p>{quizScore === quizQuestions.length ? "全部答對了！願所讀的話語繼續留在心中。" : "每次回頭查考經文，都是更深認識聖經的一步。"}</p>
+                  <button className="quiz-start" onClick={resetQuiz}>再選一份測驗</button>
+                </div>}
+                {currentQuizQuestion && !quizFinished && <>
+                  <div className="quiz-topline"><span>{currentQuizQuestion.topicTitle}</span><span>第 {quizIndex + 1} / {quizQuestions.length} 題</span></div><div className="quiz-line"><i style={{ width: `${((quizIndex + 1) / quizQuestions.length) * 100}%` }} /></div>
+                  <p className="question-kicker">{currentQuizQuestion.questionType} · {currentQuizQuestion.difficulty === "easy" ? "入門" : currentQuizQuestion.difficulty === "hard" ? "進階" : "標準"}</p><h2>{currentQuizQuestion.question}</h2>
+                  <div className="options">{currentQuizQuestion.options.map((option, index) => {
+                    const answered = quizAnswer !== null;
+                    const correct = index === currentQuizQuestion.correctIndex;
+                    const selected = quizAnswer === index;
+                    return <button key={`${currentQuizQuestion.id}-${index}`} className={`${selected ? "selected" : ""} ${answered && correct ? "correct" : ""} ${answered && selected && !correct ? "wrong" : ""}`} onClick={() => chooseQuizAnswer(index)} disabled={answered}><span>{String.fromCharCode(65 + index)}</span>{option}{answered && correct && <b>✓</b>}</button>;
+                  })}</div>
+                  {quizAnswer !== null && <div className={`answer-note ${quizAnswer === currentQuizQuestion.correctIndex ? "right" : "try"}`}><strong>{quizAnswer === currentQuizQuestion.correctIndex ? "答對了！" : "再複習一次"}</strong><p>{currentQuizQuestion.explanation} 經文依據：{currentQuizQuestion.reference}。</p><button onClick={nextQuizQuestion}>{quizIndex === quizQuestions.length - 1 ? "查看成績 →" : "下一題 →"}</button></div>}
+                </>}
               </section>
-              <aside className="quiz-types"><p className="eyebrow">選擇測驗</p><button className="active"><span>冊</span><div><strong>單一書卷</strong><small>依指定章節挑戰</small></div></button><button><span>綜</span><div><strong>綜合測驗</strong><small>自選範圍隨機出題</small></div></button><button><span>題</span><div><strong>主題測驗</strong><small>四福音、書信、先知書…</small></div></button><div className="coming-note"><strong>首批題庫建置中</strong><p>所有題目都會標示經文依據，並經人工核對後才發布。</p></div></aside>
+              <aside className="quiz-types"><p className="eyebrow">選擇測驗</p><button className={quizMode === "topic" ? "active" : ""} onClick={() => changeQuizMode("topic")}><span>冊</span><div><strong>單卷／分卷</strong><small>依預定章節範圍挑戰</small></div></button><button className={quizMode === "mixed" ? "active" : ""} onClick={() => changeQuizMode("mixed")}><span>綜</span><div><strong>綜合測驗</strong><small>全書、舊約或新約隨機出題</small></div></button><button className={quizMode === "theme" ? "active" : ""} onClick={() => changeQuizMode("theme")}><span>題</span><div><strong>主題測驗</strong><small>福音書、書信、先知書等</small></div></button><div className="coming-note"><strong>{quizTotal || 490} 題首批題庫</strong><p>涵蓋「測驗卷主題」全部 98 個範圍，每題均可回查和合本經文。</p></div></aside>
             </div>
           </div>
         )}
@@ -634,19 +860,35 @@ export default function BibleApp() {
 
         {tab === "admin" && (
           <div className="page content-page admin-page">
-            <section className="page-title"><div><p className="eyebrow">ADMIN CONSOLE</p><h1>帳號管理</h1><p>管理已透過 Google 登入的使用者。目前提供帳號與保存資料刪除功能。</p></div><div className="compact-stat"><strong>{adminUsers.length}</strong><span>使用者</span></div></section>
+            <section className="page-title"><div><p className="eyebrow">ADMIN CONSOLE</p><h1>管理員後台</h1><p>管理使用者帳號與聖經測驗題庫。</p></div><div className="compact-stat"><strong>{adminSection === "users" ? adminUsers.length : adminQuestions.length || 490}</strong><span>{adminSection === "users" ? "使用者" : "題目"}</span></div></section>
             {!authUser?.isAdmin ? <section className="admin-empty"><h2>無法開啟管理後台</h2><p>此頁面僅限管理員使用。</p></section> : (
-              <section className="admin-panel">
-                <div className="admin-panel-head"><div><h2>使用者帳號</h2><p>刪除帳號會一併刪除該使用者的登入工作階段與永久保存資料。</p></div><button onClick={() => setTab("home")}>返回網站</button></div>
-                {adminLoading ? <p className="admin-status">正在讀取帳號…</p> : adminUsers.length === 0 ? <p className="admin-status">目前沒有使用者資料。</p> : <div className="admin-users">
-                  {adminUsers.map((user) => <article className="admin-user" key={user.id}>
-                    <span className="admin-avatar">{(user.displayName ?? user.email).slice(0, 1).toUpperCase()}</span>
-                    <div><strong>{user.displayName ?? "未設定名稱"}</strong><span>{user.email}</span><small>加入：{new Date(user.createdAt).toLocaleDateString("zh-TW")} · {user.lastLoginAt ? `最近登入：${new Date(user.lastLoginAt).toLocaleDateString("zh-TW")}` : "尚無登入紀錄"}</small></div>
-                    <span className={`role-badge ${user.role}`}>{user.role === "admin" ? "管理員" : "使用者"}</span>
-                    <button className="danger-button" disabled={user.id === authUser.id || user.role === "admin"} onClick={() => deleteUser(user)}>{user.id === authUser.id ? "目前帳號" : user.role === "admin" ? "受保護" : "刪除帳號"}</button>
-                  </article>)}
-                </div>}
-              </section>
+              <>
+                <div className="admin-tabs"><button className={adminSection === "users" ? "active" : ""} onClick={() => { setAdminSection("users"); setAdminLoading(true); }}>使用者帳號</button><button className={adminSection === "questions" ? "active" : ""} onClick={() => { setAdminSection("questions"); setAdminQuestionLoading(true); }}>題庫管理</button></div>
+                {adminSection === "users" && <section className="admin-panel">
+                  <div className="admin-panel-head"><div><h2>使用者帳號</h2><p>刪除帳號會一併刪除該使用者的登入工作階段與永久保存資料。</p></div><button onClick={() => setTab("home")}>返回網站</button></div>
+                  {adminLoading ? <p className="admin-status">正在讀取帳號…</p> : adminUsers.length === 0 ? <p className="admin-status">目前沒有使用者資料。</p> : <div className="admin-users">
+                    {adminUsers.map((user) => <article className="admin-user" key={user.id}>
+                      <span className="admin-avatar">{(user.displayName ?? user.email).slice(0, 1).toUpperCase()}</span>
+                      <div><strong>{user.displayName ?? "未設定名稱"}</strong><span>{user.email}</span><small>加入：{new Date(user.createdAt).toLocaleDateString("zh-TW")} · {user.lastLoginAt ? `最近登入：${new Date(user.lastLoginAt).toLocaleDateString("zh-TW")}` : "尚無登入紀錄"}</small></div>
+                      <span className={`role-badge ${user.role}`}>{user.role === "admin" ? "管理員" : "使用者"}</span>
+                      <button className="danger-button" disabled={user.id === authUser.id || user.role === "admin"} onClick={() => deleteUser(user)}>{user.id === authUser.id ? "目前帳號" : user.role === "admin" ? "受保護" : "刪除帳號"}</button>
+                    </article>)}
+                  </div>}
+                </section>}
+                {adminSection === "questions" && <section className="admin-panel question-admin-panel">
+                  <div className="admin-panel-head"><div><h2>聖經題庫</h2><p>可搜尋、修改、停用、建立或刪除題目；只有「已發布」題目會出現在測驗中。</p></div><button className="primary-admin-action" onClick={() => setEditingQuestion({ ...emptyAdminQuestion, options: [...emptyAdminQuestion.options] })}>＋ 新增題目</button></div>
+                  <div className="question-admin-tools"><input type="search" value={adminQuestionSearch} onChange={(event) => setAdminQuestionSearch(event.target.value)} placeholder="搜尋題目、書卷、出處或測驗卷代碼" aria-label="搜尋題庫" /><span>{filteredAdminQuestions.length} 題</span></div>
+                  {adminQuestionLoading ? <p className="admin-status">正在讀取題庫…</p> : filteredAdminQuestions.length === 0 ? <p className="admin-status">找不到符合條件的題目。</p> : <div className="admin-questions">
+                    {filteredAdminQuestions.slice(0, 100).map((question) => <article className="admin-question" key={question.id}>
+                      <div className="admin-question-meta"><span>{question.topicCode} · {question.topicTitle}</span><span className={`question-status ${question.status}`}>{question.status === "active" ? "已發布" : question.status === "draft" ? "草稿" : "已停用"}</span></div>
+                      <h3>{question.question}</h3><p>{question.reference} · {question.questionType}</p>
+                      <div className="admin-question-actions"><button onClick={() => setEditingQuestion({ ...question, options: [...question.options] })}>修改</button><button className="danger-link" onClick={() => deleteAdminQuestion(question)}>刪除</button></div>
+                    </article>)}
+                    {filteredAdminQuestions.length > 100 && <p className="admin-list-note">目前顯示前 100 題，請使用搜尋縮小範圍。</p>}
+                  </div>}
+                </section>}
+                {editingQuestion && <AdminQuestionEditor question={editingQuestion} saving={adminSaving} onCancel={() => setEditingQuestion(null)} onSave={saveAdminQuestion} />}
+              </>
             )}
           </div>
         )}
@@ -671,7 +913,43 @@ export default function BibleApp() {
       </>}</section></div>}
 
       {toast && <div className="toast" role="status">{toast}</div>}
-      <span className="version-badge">v0.3.0</span>
+      <span className="version-badge">v0.4.0</span>
     </div>
   );
+}
+
+function AdminQuestionEditor({ question, saving, onCancel, onSave }: {
+  question: AdminQuestion;
+  saving: boolean;
+  onCancel(): void;
+  onSave(question: AdminQuestion): void;
+}) {
+  const [draft, setDraft] = useState<AdminQuestion>(question);
+  const update = <K extends keyof AdminQuestion>(key: K, value: AdminQuestion[K]) => setDraft((current) => ({ ...current, [key]: value }));
+  const updateOption = (index: number, value: string) => setDraft((current) => ({
+    ...current,
+    options: current.options.map((option, optionIndex) => optionIndex === index ? value : option),
+  }));
+
+  return <div className="modal-backdrop question-editor-backdrop"><form className="question-editor" onSubmit={(event) => { event.preventDefault(); onSave(draft); }}>
+    <div className="question-editor-head"><div><p className="eyebrow">QUESTION EDITOR</p><h2>{draft.id ? "修改題目" : "新增題目"}</h2></div><button type="button" className="modal-close" onClick={onCancel} aria-label="關閉">×</button></div>
+    <div className="question-editor-grid">
+      <label><span>測驗卷代碼</span><input value={draft.topicCode} onChange={(event) => update("topicCode", event.target.value)} required /></label>
+      <label className="wide"><span>測驗卷名稱</span><input value={draft.topicTitle} onChange={(event) => update("topicTitle", event.target.value)} required /></label>
+      <label><span>書卷代碼</span><input value={draft.bookCodes} onChange={(event) => update("bookCodes", event.target.value.toUpperCase())} required /></label>
+      <label><span>書卷名稱</span><input value={draft.bookName} onChange={(event) => update("bookName", event.target.value)} required /></label>
+      <label><span>約別</span><select value={draft.testament} onChange={(event) => update("testament", event.target.value)}><option>舊約</option><option>新約</option></select></label>
+      <label><span>主題分類</span><select value={draft.section} onChange={(event) => update("section", event.target.value)}><option value="pentateuch">摩西五經</option><option value="history">歷史書</option><option value="poetry">詩歌智慧書</option><option value="major_prophets">大先知書</option><option value="minor_prophets">小先知書</option><option value="gospels">四福音書</option><option value="acts">使徒行傳</option><option value="pauline">保羅書信</option><option value="general_epistles">普通書信</option><option value="prophecy">啟示文學</option></select></label>
+      <label><span>起始章</span><input type="number" min="1" max="150" value={draft.chapterStart} onChange={(event) => update("chapterStart", Number(event.target.value))} required /></label>
+      <label><span>結束章</span><input type="number" min="1" max="150" value={draft.chapterEnd} onChange={(event) => update("chapterEnd", Number(event.target.value))} required /></label>
+      <label><span>題型</span><select value={draft.questionType} onChange={(event) => update("questionType", event.target.value as AdminQuestion["questionType"])}><option>內容理解</option><option>經文辨識</option><option>出處辨識</option></select></label>
+      <label><span>難度</span><select value={draft.difficulty} onChange={(event) => update("difficulty", event.target.value as AdminQuestion["difficulty"])}><option value="easy">入門</option><option value="medium">標準</option><option value="hard">進階</option></select></label>
+      <label className="full"><span>題目</span><textarea value={draft.question} onChange={(event) => update("question", event.target.value)} required /></label>
+      {draft.options.map((option, index) => <label className="option-field" key={index}><span>選項 {String.fromCharCode(65 + index)} {draft.correctIndex === index && "（正確答案）"}</span><div><input type="radio" name="correct-answer" checked={draft.correctIndex === index} onChange={() => update("correctIndex", index)} aria-label={`將選項 ${String.fromCharCode(65 + index)} 設為正確答案`} /><textarea value={option} onChange={(event) => updateOption(index, event.target.value)} required /></div></label>)}
+      <label className="full"><span>答案解說</span><textarea value={draft.explanation} onChange={(event) => update("explanation", event.target.value)} required /></label>
+      <label className="wide"><span>經文依據</span><input value={draft.reference} onChange={(event) => update("reference", event.target.value)} placeholder="例如：創世記 1:1" required /></label>
+      <label><span>發布狀態</span><select value={draft.status} onChange={(event) => update("status", event.target.value as AdminQuestion["status"])}><option value="active">已發布</option><option value="draft">草稿</option><option value="disabled">已停用</option></select></label>
+    </div>
+    <div className="question-editor-actions"><button type="button" onClick={onCancel}>取消</button><button type="submit" className="save-question" disabled={saving}>{saving ? "儲存中…" : "儲存題目"}</button></div>
+  </form></div>;
 }

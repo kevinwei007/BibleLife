@@ -15,6 +15,13 @@
       "when": 1787217340854,
       "tag": "0001_medical_mister_sinister",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1787219490383,
+      "tag": "0002_perfect_the_fury",
+      "breakpoints": true
     }
   ]
 }
