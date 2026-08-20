@@ -27,7 +27,9 @@ test("renders the 微光讀經 initial experience", async () => {
   assert.match(html, /在話語裡，遇見今日的光/);
   assert.match(html, /讀經進度/);
   assert.match(html, /今日小測驗/);
-  assert.match(html, /v0\.2\.1/);
+  assert.match(html, /v0\.3\.0/);
+  assert.match(html, /如有違反版權，請來信告知，會盡速處理/);
+  assert.match(html, /kevin770726@gmail\.com/);
   assert.doesNotMatch(html, /codex-preview|Building your site|react-loading-skeleton|ChatGPT/i);
 });
 
@@ -44,7 +46,7 @@ test("keeps version, metadata, database, scripture, and social preview artifacts
     readFile(new URL("data/source/README.md", projectRoot), "utf8"),
   ]);
 
-  assert.equal(version.trim(), "0.2.1");
+  assert.equal(version.trim(), "0.3.0");
   assert.match(packageJson, /"name": "light-in-the-word"/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
   assert.match(hosting, /"d1": "DB"/);
@@ -61,6 +63,27 @@ test("keeps version, metadata, database, scripture, and social preview artifacts
   await assert.rejects(access(new URL("app/_sites-preview/", projectRoot)));
 });
 
+test("keeps Google authentication, durable state, and protected admin routes", async () => {
+  const [auth, schema, googleRoute, stateRoute, adminRoute, migration] = await Promise.all([
+    readFile(new URL("lib/auth.ts", projectRoot), "utf8"),
+    readFile(new URL("db/schema.ts", projectRoot), "utf8"),
+    readFile(new URL("app/api/auth/google/route.ts", projectRoot), "utf8"),
+    readFile(new URL("app/api/user-data/route.ts", projectRoot), "utf8"),
+    readFile(new URL("app/api/admin/users/route.ts", projectRoot), "utf8"),
+    readFile(new URL("drizzle/0001_medical_mister_sinister.sql", projectRoot), "utf8"),
+  ]);
+
+  assert.match(auth, /RSASSA-PKCS1-v1_5/);
+  assert.match(auth, /__Host-biblelife_session/);
+  assert.match(schema, /userSnapshots/);
+  assert.match(schema, /sessions/);
+  assert.match(googleRoute, /verifyGoogleCredential/);
+  assert.match(stateRoute, /ON CONFLICT\(user_id\)/);
+  assert.match(adminRoute, /requireAdmin/);
+  assert.match(adminRoute, /DELETE FROM users/);
+  assert.match(migration, /PRAGMA optimize/);
+});
+
 test("keeps inline insight editing and reversible reading progress", async () => {
   const [app, styles] = await Promise.all([
     readFile(new URL("app/BibleApp.tsx", projectRoot), "utf8"),
@@ -68,10 +91,11 @@ test("keeps inline insight editing and reversible reading progress", async () =>
   ]);
 
   assert.match(app, /insightVerseKey === verseKey/);
-  assert.match(app, /className="insight-editor inline"/);
+  assert.match(app, /className="insight-editor verse-insight-editor"/);
   assert.match(app, /className="chapter-unmark"/);
   assert.match(app, /next\.delete\(key\)/);
   assert.match(app, /rewardedChapters\.has\(key\)/);
-  assert.match(styles, /\.insight-editor\.inline/);
+  assert.match(styles, /\.insight-editor\.verse-insight-editor/);
+  assert.match(styles, /\.insight-actions/);
   assert.match(styles, /\.chapter-unmark/);
 });

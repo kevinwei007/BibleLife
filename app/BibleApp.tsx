@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type Tab = "home" | "progress" | "read" | "quiz" | "collection";
+type Tab = "home" | "progress" | "read" | "quiz" | "collection" | "admin";
 
 type Book = {
   code: string;
@@ -35,6 +35,45 @@ type SavedVerse = {
   number: string;
   text: string;
 };
+
+type AuthUser = {
+  id: string;
+  email: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  role: "user" | "admin";
+  isAdmin: boolean;
+};
+
+type AdminUser = AuthUser & {
+  createdAt: string;
+  lastLoginAt: string | null;
+};
+
+type PersistedState = {
+  completed: string[];
+  favorites: Record<string, SavedVerse>;
+  highlighted: string[];
+  note: string;
+  insightReference: string;
+  coins: number;
+  xp: number;
+};
+
+type GoogleCredentialResponse = { credential: string };
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize(options: { client_id: string; callback(response: GoogleCredentialResponse): void }): void;
+          renderButton(element: HTMLElement, options: Record<string, string | number>): void;
+        };
+      };
+    };
+  }
+}
 
 const oldTestament: Array<[string, string, number]> = [
   ["創世記", "創", 50], ["出埃及記", "出", 40], ["利未記", "利", 27], ["民數記", "民", 36],
@@ -108,6 +147,14 @@ export default function BibleApp() {
   const [toast, setToast] = useState("");
   const [showLogin, setShowLogin] = useState(false);
   const [showSource, setShowSource] = useState(false);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authMessage, setAuthMessage] = useState("");
+  const [googleConfigured, setGoogleConfigured] = useState<boolean | null>(null);
+  const [userStateReady, setUserStateReady] = useState(false);
+  const [syncState, setSyncState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [adminLoading, setAdminLoading] = useState(false);
 
   const totalChapters = 1189;
   const progress = Math.round((completed.size / totalChapters) * 100);
@@ -140,9 +187,172 @@ export default function BibleApp() {
     if (insightVerseKey) document.getElementById("insight-editor")?.focus();
   }, [insightVerseKey]);
 
+  useEffect(() => {
+    let active = true;
+    fetch("/api/auth/me", { cache: "no-store" })
+      .then((response) => response.json() as Promise<{ user: AuthUser | null }>)
+      .then(({ user }) => { if (active) setAuthUser(user); })
+      .catch(() => { if (active) setAuthMessage("暫時無法確認登入狀態"); })
+      .finally(() => { if (active) setAuthLoading(false); });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!authUser) return;
+    let active = true;
+    fetch("/api/user-data", { cache: "no-store" })
+      .then(async (response) => {
+        const result = await response.json() as { state: PersistedState | null; error?: string };
+        if (!response.ok) throw new Error(result.error ?? "讀取同步資料失敗");
+        return result.state;
+      })
+      .then((state) => {
+        if (!active || !state) return;
+        if (Array.isArray(state.completed)) {
+          setCompleted(new Set(state.completed));
+          setRewardedChapters(new Set(state.completed));
+        }
+        if (state.favorites && typeof state.favorites === "object") setFavorites(state.favorites);
+        if (Array.isArray(state.highlighted)) setHighlighted(new Set(state.highlighted));
+        if (typeof state.note === "string") setNote(state.note);
+        if (typeof state.insightReference === "string") setInsightReference(state.insightReference);
+        if (Number.isFinite(state.coins)) setCoins(Math.max(0, Math.round(state.coins)));
+        if (Number.isFinite(state.xp)) setXp(Math.max(0, Math.round(state.xp)));
+      })
+      .catch((error: Error) => { if (active) notify(error.message); })
+      .finally(() => { if (active) { setUserStateReady(true); setSyncState("saved"); } });
+    return () => { active = false; };
+  }, [authUser]);
+
+  useEffect(() => {
+    if (!authUser || !userStateReady) return;
+    const timeout = window.setTimeout(() => {
+      setSyncState("saving");
+      const state: PersistedState = {
+        completed: Array.from(completed),
+        favorites,
+        highlighted: Array.from(highlighted),
+        note,
+        insightReference,
+        coins,
+        xp,
+      };
+      fetch("/api/user-data", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ state }),
+      }).then((response) => {
+        if (!response.ok) throw new Error("同步失敗");
+        setSyncState("saved");
+      }).catch(() => setSyncState("error"));
+    }, 700);
+    return () => window.clearTimeout(timeout);
+  }, [authUser, coins, completed, favorites, highlighted, insightReference, note, userStateReady, xp]);
+
+  useEffect(() => {
+    if (!showLogin || authUser) return;
+    let active = true;
+
+    async function renderGoogleButton() {
+      setAuthMessage("");
+      const configResponse = await fetch("/api/auth/config", { cache: "no-store" });
+      const config = await configResponse.json() as { configured: boolean; clientId: string };
+      if (!active) return;
+      setGoogleConfigured(config.configured);
+      if (!config.configured) return;
+
+      const draw = () => {
+        const target = document.getElementById("google-signin-button");
+        if (!active || !target || !window.google) return;
+        target.replaceChildren();
+        window.google.accounts.id.initialize({
+          client_id: config.clientId,
+          callback: async ({ credential }) => {
+            setAuthMessage("正在驗證 Google 帳號…");
+            const response = await fetch("/api/auth/google", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "X-BibleLife-Auth": "google" },
+              body: JSON.stringify({ credential }),
+            });
+            const result = await response.json() as { user?: AuthUser; error?: string };
+            if (!response.ok || !result.user) {
+              setAuthMessage(result.error ?? "Google 登入失敗");
+              return;
+            }
+            setUserStateReady(false);
+            setAuthUser(result.user);
+            setShowLogin(false);
+            setAuthMessage("");
+            notify(`歡迎回來，${result.user.displayName ?? result.user.email}`);
+          },
+        });
+        window.google.accounts.id.renderButton(target, {
+          theme: "outline", size: "large", shape: "rectangular", text: "signin_with", locale: "zh_TW", width: 300,
+        });
+      };
+
+      if (window.google) {
+        draw();
+        return;
+      }
+      let script = document.querySelector<HTMLScriptElement>('script[data-biblelife-google="true"]');
+      if (!script) {
+        script = document.createElement("script");
+        script.src = "https://accounts.google.com/gsi/client?hl=zh_TW";
+        script.async = true;
+        script.dataset.biblelifeGoogle = "true";
+        document.head.append(script);
+      }
+      script.addEventListener("load", draw, { once: true });
+    }
+
+    renderGoogleButton().catch(() => { if (active) setAuthMessage("Google 登入載入失敗，請稍後再試"); });
+    return () => { active = false; };
+  }, [authUser, showLogin]);
+
+  useEffect(() => {
+    if (tab !== "admin" || !authUser?.isAdmin) return;
+    let active = true;
+    fetch("/api/admin/users", { cache: "no-store" })
+      .then(async (response) => {
+        const result = await response.json() as { users?: AdminUser[]; error?: string };
+        if (!response.ok) throw new Error(result.error ?? "讀取帳號失敗");
+        return result.users ?? [];
+      })
+      .then((users) => { if (active) setAdminUsers(users); })
+      .catch((error: Error) => { if (active) notify(error.message); })
+      .finally(() => { if (active) setAdminLoading(false); });
+    return () => { active = false; };
+  }, [authUser, tab]);
+
   function notify(message: string) {
     setToast(message);
     window.setTimeout(() => setToast(""), 2400);
+  }
+
+  async function signOut() {
+    const response = await fetch("/api/auth/logout", { method: "POST" });
+    if (!response.ok) {
+      notify("登出失敗，請稍後再試");
+      return;
+    }
+    window.location.reload();
+  }
+
+  async function deleteUser(user: AdminUser) {
+    if (!window.confirm(`確定要刪除 ${user.displayName ?? user.email} 的帳號與全部保存資料嗎？此操作無法復原。`)) return;
+    const response = await fetch("/api/admin/users", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: user.id }),
+    });
+    const result = await response.json() as { error?: string };
+    if (!response.ok) {
+      notify(result.error ?? "刪除帳號失敗");
+      return;
+    }
+    setAdminUsers((current) => current.filter((item) => item.id !== user.id));
+    notify("使用者帳號與保存資料已刪除");
   }
 
   function completeChapter(book = readerBook.name, chapter = readerChapter) {
@@ -242,9 +452,10 @@ export default function BibleApp() {
           ))}
         </nav>
         <div className="account-actions">
+          {authUser && <span className={`sync-state ${syncState}`}>{syncState === "saving" ? "同步中" : syncState === "error" ? "同步失敗" : "已同步"}</span>}
           <div className="currency"><span>✦</span><b>{coins}</b></div>
           <button className="avatar" onClick={() => setShowLogin(true)} aria-label="開啟帳號選單">
-            旅
+            {authLoading ? "…" : (authUser?.displayName ?? authUser?.email ?? "旅").slice(0, 1).toUpperCase()}
           </button>
         </div>
       </header>
@@ -377,10 +588,10 @@ export default function BibleApp() {
                         <button onClick={() => { setInsightReference(`${readerBook.name} ${readerChapter}:${verse.number}`); setInsightVerseKey(verseKey); setActiveVerse(null); }}>✦ 我的亮光</button>
                       </div>}
                     </div>
-                    {insightVerseKey === verseKey && <div className="insight-editor inline">
+                    {insightVerseKey === verseKey && <div className="insight-editor verse-insight-editor">
                       <div><span className="insight-icon">✦</span><div><p className="eyebrow">我的亮光</p><strong>{insightReference}</strong></div><span className={savedNote ? "save-state saved" : "save-state"}>{savedNote ? "已儲存" : "尚未儲存"}</span><button className="insight-close" onClick={() => setInsightVerseKey(null)} aria-label="關閉亮光編輯框">×</button></div>
                       <textarea id="insight-editor" value={note} onChange={(event) => { setNote(event.target.value); setSavedNote(false); }} aria-label="我的亮光筆記" />
-                      <button onClick={() => { setSavedNote(true); notify("亮光筆記已儲存"); }}>儲存亮光</button>
+                      <div className="insight-actions"><button className="insight-save" onClick={() => { setSavedNote(true); notify("亮光筆記已儲存"); }}>儲存亮光</button></div>
                     </div>}
                   </section>;
                 })}
@@ -420,16 +631,47 @@ export default function BibleApp() {
             </div>
           </div>
         )}
+
+        {tab === "admin" && (
+          <div className="page content-page admin-page">
+            <section className="page-title"><div><p className="eyebrow">ADMIN CONSOLE</p><h1>帳號管理</h1><p>管理已透過 Google 登入的使用者。目前提供帳號與保存資料刪除功能。</p></div><div className="compact-stat"><strong>{adminUsers.length}</strong><span>使用者</span></div></section>
+            {!authUser?.isAdmin ? <section className="admin-empty"><h2>無法開啟管理後台</h2><p>此頁面僅限管理員使用。</p></section> : (
+              <section className="admin-panel">
+                <div className="admin-panel-head"><div><h2>使用者帳號</h2><p>刪除帳號會一併刪除該使用者的登入工作階段與永久保存資料。</p></div><button onClick={() => setTab("home")}>返回網站</button></div>
+                {adminLoading ? <p className="admin-status">正在讀取帳號…</p> : adminUsers.length === 0 ? <p className="admin-status">目前沒有使用者資料。</p> : <div className="admin-users">
+                  {adminUsers.map((user) => <article className="admin-user" key={user.id}>
+                    <span className="admin-avatar">{(user.displayName ?? user.email).slice(0, 1).toUpperCase()}</span>
+                    <div><strong>{user.displayName ?? "未設定名稱"}</strong><span>{user.email}</span><small>加入：{new Date(user.createdAt).toLocaleDateString("zh-TW")} · {user.lastLoginAt ? `最近登入：${new Date(user.lastLoginAt).toLocaleDateString("zh-TW")}` : "尚無登入紀錄"}</small></div>
+                    <span className={`role-badge ${user.role}`}>{user.role === "admin" ? "管理員" : "使用者"}</span>
+                    <button className="danger-button" disabled={user.id === authUser.id || user.role === "admin"} onClick={() => deleteUser(user)}>{user.id === authUser.id ? "目前帳號" : user.role === "admin" ? "受保護" : "刪除帳號"}</button>
+                  </article>)}
+                </div>}
+              </section>
+            )}
+          </div>
+        )}
       </main>
+
+      <footer className="site-footer"><p>如有違反版權，請來信告知，會盡速處理。</p><a href="mailto:kevin770726@gmail.com">kevin770726@gmail.com</a></footer>
 
       <nav className="mobile-nav" aria-label="行動版導覽">{navItems.map((item) => <button key={item.id} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)}><span>{item.mark}</span>{item.label}</button>)}</nav>
 
       {showSource && <div className="modal-backdrop"><section className="source-modal" role="dialog" aria-modal="true" aria-labelledby="source-title"><button className="modal-close" onClick={() => setShowSource(false)} aria-label="關閉">×</button><p className="eyebrow">SCRIPTURE SOURCE</p><h2 id="source-title">經文版本與資料來源</h2><dl><div><dt>版本</dt><dd>新標點和合本（CUVt）</dd></div><div><dt>資料識別</dt><dd>cmn-cu89t</dd></div><div><dt>授權</dt><dd>Public Domain</dd></div><div><dt>來源</dt><dd><a href="https://ebible.org/bible/details.php?all=1&id=cmn-cu89t" target="_blank" rel="noreferrer">eBible.org 版本說明</a></dd></div><div><dt>完整性</dt><dd>66 卷 · 1,189 章；保留來源中的合併節號與缺節編排，不自行補寫經文。</dd></div></dl><p className="source-note">本網站以 USFM 原始資料產生逐卷經文檔，並保存來源檔案的 SHA-256 校驗值。</p></section></div>}
 
-      {showLogin && <div className="modal-backdrop"><section className="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-title"><button className="modal-close" onClick={() => setShowLogin(false)} aria-label="關閉">×</button><span className="brand-seal large">光</span><p className="eyebrow">保存你的讀經旅程</p><h2 id="login-title">帳號功能準備中</h2><p className="modal-copy">目前可以直接體驗網站，不需要登入。正式帳號將提供 Google 與 Email 兩種方式，並用來同步閱讀進度與私人筆記。</p><button className="login-option disabled" disabled><span>G</span> Google 登入 · 即將推出</button><button className="login-option disabled" disabled><span>@</span> Email 登入 · 即將推出</button></section></div>}
+      {showLogin && <div className="modal-backdrop"><section className="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-title"><button className="modal-close" onClick={() => setShowLogin(false)} aria-label="關閉">×</button><span className="brand-seal large">光</span><p className="eyebrow">保存你的讀經旅程</p>{authUser ? <>
+        <h2 id="login-title">{authUser.displayName ?? "歡迎回來"}</h2><p className="account-email">{authUser.email}</p><p className="modal-copy">讀經進度、金句、劃記與亮光會自動保存。{syncState === "error" ? "目前同步失敗，請稍後再試。" : "目前資料已連結至此帳號。"}</p>
+        {authUser.isAdmin && <button className="login-option admin-entry" onClick={() => { setAdminLoading(true); setTab("admin"); setShowLogin(false); }}>管理員後台</button>}
+        <button className="login-option muted" onClick={signOut}>登出</button>
+      </> : <>
+        <h2 id="login-title">使用 Google 帳號登入</h2><p className="modal-copy">網站可直接閱讀；登入後會跨裝置永久保存你的進度、收藏、劃記與亮光。</p>
+        <div id="google-signin-button" className="google-signin-slot" aria-live="polite" />
+        {googleConfigured === false && <p className="auth-warning">Google 登入尚待管理員完成 Client ID 設定。</p>}
+        {googleConfigured === null && <p className="auth-status">正在載入登入服務…</p>}
+        {authMessage && <p className="auth-warning">{authMessage}</p>}
+      </>}</section></div>}
 
       {toast && <div className="toast" role="status">{toast}</div>}
-      <span className="version-badge">v0.2.1</span>
+      <span className="version-badge">v0.3.0</span>
     </div>
   );
 }

@@ -4,11 +4,36 @@ import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqli
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   email: text("email").notNull(),
+  googleSub: text("google_sub"),
   displayName: text("display_name"),
+  avatarUrl: text("avatar_url"),
+  role: text("role", { enum: ["user", "admin"] }).notNull().default("user"),
   timezone: text("timezone").notNull().default("Asia/Taipei"),
+  lastLoginAt: text("last_login_at"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-}, (table) => [uniqueIndex("idx_users_email").on(table.email)]);
+}, (table) => [
+  uniqueIndex("idx_users_email").on(table.email),
+  uniqueIndex("idx_users_google_sub").on(table.googleSub),
+  index("idx_users_role_created").on(table.role, table.createdAt),
+]);
+
+export const sessions = sqliteTable("sessions", {
+  tokenHash: text("token_hash").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  expiresAt: text("expires_at").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  lastSeenAt: text("last_seen_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("idx_sessions_user").on(table.userId),
+  index("idx_sessions_expires").on(table.expiresAt),
+]);
+
+export const userSnapshots = sqliteTable("user_snapshots", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  stateJson: text("state_json").notNull(),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
 
 export const readingCycles = sqliteTable("reading_cycles", {
   id: integer("id").primaryKey({ autoIncrement: true }),
