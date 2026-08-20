@@ -27,7 +27,7 @@ test("renders the 微光讀經 initial experience", async () => {
   assert.match(html, /在話語裡，遇見今日的光/);
   assert.match(html, /讀經進度/);
   assert.match(html, /今日小測驗/);
-  assert.match(html, /v0\.2\.0/);
+  assert.match(html, /v0\.2\.1/);
   assert.doesNotMatch(html, /codex-preview|Building your site|react-loading-skeleton|ChatGPT/i);
 });
 
@@ -44,7 +44,7 @@ test("keeps version, metadata, database, scripture, and social preview artifacts
     readFile(new URL("data/source/README.md", projectRoot), "utf8"),
   ]);
 
-  assert.equal(version.trim(), "0.2.0");
+  assert.equal(version.trim(), "0.2.1");
   assert.match(packageJson, /"name": "light-in-the-word"/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
   assert.match(hosting, /"d1": "DB"/);
@@ -59,4 +59,19 @@ test("keeps version, metadata, database, scripture, and social preview artifacts
   assert.match(sourceReadme, /cmn-cu89t/);
   await access(new URL("public/og.png", projectRoot));
   await assert.rejects(access(new URL("app/_sites-preview/", projectRoot)));
+});
+
+test("keeps inline insight editing and reversible reading progress", async () => {
+  const [app, styles] = await Promise.all([
+    readFile(new URL("app/BibleApp.tsx", projectRoot), "utf8"),
+    readFile(new URL("app/globals.css", projectRoot), "utf8"),
+  ]);
+
+  assert.match(app, /insightVerseKey === verseKey/);
+  assert.match(app, /className="insight-editor inline"/);
+  assert.match(app, /className="chapter-unmark"/);
+  assert.match(app, /next\.delete\(key\)/);
+  assert.match(app, /rewardedChapters\.has\(key\)/);
+  assert.match(styles, /\.insight-editor\.inline/);
+  assert.match(styles, /\.chapter-unmark/);
 });

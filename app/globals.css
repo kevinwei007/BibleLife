@@ -172,8 +172,11 @@ h1, h2, blockquote { font-family: "Noto Serif TC", "PMingLiU", serif; }
 .chevron { margin-left: 10px; color: var(--muted); transition: .2s; }
 .book-row.open .chevron { transform: rotate(180deg); }
 .chapters-grid { padding: 8px 22px 22px 80px; display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 7px; border-top: 1px solid var(--line); }
-.chapters-grid button { aspect-ratio: 1; border: 1px solid var(--line); border-radius: 8px; background: var(--white); font-size: 11px; cursor: pointer; }
-.chapters-grid button.done { border-color: var(--moss); background: var(--sage); color: var(--moss-dark); font-weight: 800; }
+.chapter-cell { position: relative; aspect-ratio: 1; min-width: 0; }
+.chapters-grid .chapter-open { width: 100%; height: 100%; border: 1px solid var(--line); border-radius: 8px; background: var(--white); font-size: 11px; cursor: pointer; }
+.chapters-grid .chapter-open.done { border-color: var(--moss); background: var(--sage); color: var(--moss-dark); font-weight: 800; }
+.chapters-grid .chapter-unmark { position: absolute; z-index: 2; top: -5px; right: -5px; width: 18px; height: 18px; padding: 0; border: 1px solid var(--clay); border-radius: 50%; background: var(--white); color: var(--clay); font-size: 12px; line-height: 16px; cursor: pointer; opacity: 0; transition: opacity .15s, transform .15s; }
+.chapter-cell:hover .chapter-unmark, .chapter-unmark:focus-visible { opacity: 1; transform: scale(1.05); }
 
 .reader-layout { width: min(1300px, 100%); margin: 0 auto; display: grid; grid-template-columns: 285px 1fr; min-height: calc(100vh - 76px); }
 .reader-aside { padding: 65px 34px; border-right: 1px solid var(--line); }
@@ -217,6 +220,7 @@ h1, h2, blockquote { font-family: "Noto Serif TC", "PMingLiU", serif; }
 .reader-complete button { padding: 12px 19px; border: 0; border-radius: 99px; background: var(--moss-dark); color: white; font-weight: 700; cursor: pointer; }
 .reader-complete button.completed { background: var(--sage); color: var(--moss-dark); }
 .insight-editor { margin-top: 24px; padding: 24px; border: 1px solid var(--line); border-radius: 16px; background: var(--white); }
+.insight-editor.inline { margin: 10px 0 18px 38px; border-left: 3px solid var(--gold); box-shadow: 0 12px 30px rgba(47,75,58,.08); }
 .insight-editor > div { display: flex; align-items: center; gap: 12px; }
 .insight-icon { width: 37px; height: 37px; display: grid; place-items: center; border-radius: 50%; background: #f2e6c9; color: #96712f; }
 .insight-editor .eyebrow { margin: 0; font-size: 9px; }
@@ -226,6 +230,7 @@ h1, h2, blockquote { font-family: "Noto Serif TC", "PMingLiU", serif; }
 .insight-editor textarea { width: 100%; min-height: 110px; margin-top: 17px; padding: 15px; resize: vertical; border: 1px solid var(--line); border-radius: 10px; outline: none; background: var(--paper); color: var(--ink); line-height: 1.8; }
 .insight-editor textarea:focus { border-color: var(--moss); box-shadow: 0 0 0 3px rgba(73,102,83,.1); }
 .insight-editor > button { margin-top: 12px; padding: 9px 16px; border: 0; border-radius: 8px; background: var(--moss-dark); color: white; font-size: 11px; cursor: pointer; }
+.insight-editor .insight-close { width: 28px; height: 28px; margin-left: 2px; padding: 0; border: 0; border-radius: 50%; background: var(--paper); color: var(--muted); font-size: 18px; cursor: pointer; }
 
 .quiz-score-badge { border-left-color: rgba(195,151,70,.3); }
 .quiz-score-badge strong { color: #99742f; }
@@ -330,11 +335,11 @@ h1, h2, blockquote { font-family: "Noto Serif TC", "PMingLiU", serif; }
   .compact-stat, .quiz-score-badge { min-width: 74px; padding: 10px; }
   .testament-switch { width: 100%; }.testament-switch button { flex: 1; padding-inline: 8px; }
   .book-summary { padding: 12px; gap: 10px; }.book-spine { width: 37px; height: 44px; }.book-name { min-width: 0; flex: 1; }.book-name strong { font-size: 13px; }.book-progress { display: none; }
-  .chapters-grid { padding: 13px; grid-template-columns: repeat(7, 1fr); }
+  .chapters-grid { padding: 13px; grid-template-columns: repeat(7, 1fr); }.chapters-grid .chapter-unmark { opacity: 1; }
   .scripture-page { width: calc(100% - 30px); padding-top: 35px; }.scripture-page > header h1 { font-size: 50px; }
   .verse { grid-template-columns: 25px 1fr 15px; }.verse p { font-size: 19px; }.verse-menu { left: 8px; right: 8px; top: 50px; flex-wrap: wrap; }
   .reader-complete { align-items: flex-start; gap: 16px; }.reader-complete button { flex: 0 0 auto; }
-  .insight-editor { padding: 19px; }
+  .insight-editor { padding: 19px; }.insight-editor.inline { margin-left: 0; }
   .quiz-main-card { padding: 25px 18px; }.options { grid-template-columns: 1fr; }.quiz-types { padding: 15px; }.quiz-types > button { padding: 9px; flex-direction: column; text-align: center; }
   .collection-grid { grid-template-columns: 1fr; }.collection-card { min-height: 0; padding: 23px; }
   .mobile-nav { position: fixed; z-index: 50; left: 10px; right: 10px; bottom: 9px; height: 62px; display: grid; grid-template-columns: repeat(5, 1fr); padding: 5px 6px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255,253,248,.94); box-shadow: 0 10px 40px rgba(35,50,40,.17); backdrop-filter: blur(16px); }

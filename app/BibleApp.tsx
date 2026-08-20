@@ -84,6 +84,7 @@ const quizOptions = ["挪亞", "亞伯拉罕", "摩西", "大衛"];
 export default function BibleApp() {
   const [tab, setTab] = useState<Tab>("home");
   const [completed, setCompleted] = useState(() => new Set(["創世記-1", "創世記-2", "創世記-3", "創世記-4", "馬太福音-1", "詩篇-1"]));
+  const [rewardedChapters, setRewardedChapters] = useState(() => new Set(completed));
   const [openBook, setOpenBook] = useState("創世記");
   const [testamentFilter, setTestamentFilter] = useState<"全部" | "舊約" | "新約">("全部");
   const [readerBookCode, setReaderBookCode] = useState("GEN");
@@ -97,6 +98,7 @@ export default function BibleApp() {
   }));
   const [highlighted, setHighlighted] = useState(() => new Set<string>(["GEN-1-4"]));
   const [activeVerse, setActiveVerse] = useState<string | null>(null);
+  const [insightVerseKey, setInsightVerseKey] = useState<string | null>(null);
   const [insightReference, setInsightReference] = useState("創世記 1:3–4");
   const [note, setNote] = useState("神的話語在混亂裡帶來秩序，也提醒我今天先停下來，看見光。\n");
   const [savedNote, setSavedNote] = useState(true);
@@ -134,6 +136,10 @@ export default function BibleApp() {
     return () => { active = false; controller.abort(); };
   }, [readerBookCode]);
 
+  useEffect(() => {
+    if (insightVerseKey) document.getElementById("insight-editor")?.focus();
+  }, [insightVerseKey]);
+
   function notify(message: string) {
     setToast(message);
     window.setTimeout(() => setToast(""), 2400);
@@ -142,15 +148,23 @@ export default function BibleApp() {
   function completeChapter(book = readerBook.name, chapter = readerChapter) {
     const key = `${book}-${chapter}`;
     if (completed.has(key)) {
-      notify("這一章已經完成囉");
+      const next = new Set(completed);
+      next.delete(key);
+      setCompleted(next);
+      notify(`已取消${book}第 ${chapter} 章的已讀標記`);
       return;
     }
     const next = new Set(completed);
     next.add(key);
     setCompleted(next);
-    setXp((value) => value + 20);
-    setCoins((value) => value + 5);
-    notify("完成一章 · +20 經驗值 · +5 代幣");
+    if (!rewardedChapters.has(key)) {
+      setRewardedChapters((current) => new Set(current).add(key));
+      setXp((value) => value + 20);
+      setCoins((value) => value + 5);
+      notify("完成一章 · +20 經驗值 · +5 代幣");
+    } else {
+      notify(`已恢復${book}第 ${chapter} 章的已讀標記`);
+    }
   }
 
   function toggleHighlight(key: string) {
@@ -191,6 +205,7 @@ export default function BibleApp() {
     }
     setReaderChapter(chapter);
     setActiveVerse(null);
+    setInsightVerseKey(null);
   }
 
   function openReader(book: Book, chapter: number) {
@@ -210,6 +225,7 @@ export default function BibleApp() {
       changeReaderLocation(books[bookIndex + 1].code, 1);
     }
     setActiveVerse(null);
+    setInsightVerseKey(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -310,7 +326,10 @@ export default function BibleApp() {
                   </button>
                   {isOpen && <div className="chapters-grid">{Array.from({ length: book.chapters }, (_, index) => index + 1).map((chapter) => {
                     const done = completed.has(`${book.name}-${chapter}`);
-                    return <button key={chapter} className={done ? "done" : ""} onClick={() => openReader(book, chapter)} aria-label={`閱讀${book.name}第 ${chapter} 章${done ? "，已完成" : ""}`}>{done ? "✓" : chapter}</button>;
+                    return <div className="chapter-cell" key={chapter}>
+                      <button className={`chapter-open ${done ? "done" : ""}`} onClick={() => openReader(book, chapter)} aria-label={`閱讀${book.name}第 ${chapter} 章${done ? "，已完成" : ""}`}>{done ? "✓" : chapter}</button>
+                      {done && <button className="chapter-unmark" onClick={() => completeChapter(book.name, chapter)} aria-label={`取消${book.name}第 ${chapter} 章的已讀標記`} title="取消已讀標記">×</button>}
+                    </div>;
                   })}</div>}
                 </article>;
               })}
@@ -330,7 +349,7 @@ export default function BibleApp() {
               <h1>{readerBook.name}</h1>
               <div className="chapter-selector">
                 <button onClick={() => moveChapter(-1)} disabled={readerBook.code === "GEN" && readerChapter === 1} aria-label="上一章">‹</button>
-                <select aria-label="選擇章節" value={readerChapter} onChange={(event) => { setReaderChapter(Number(event.target.value)); setActiveVerse(null); }}>
+                <select aria-label="選擇章節" value={readerChapter} onChange={(event) => { setReaderChapter(Number(event.target.value)); setActiveVerse(null); setInsightVerseKey(null); }}>
                   {Array.from({ length: readerBook.chapters }, (_, index) => index + 1).map((chapter) => <option value={chapter} key={chapter}>第 {chapter} 章</option>)}
                 </select>
                 <button onClick={() => moveChapter(1)} disabled={readerBook.code === "REV" && readerChapter === 22} aria-label="下一章">›</button>
@@ -355,14 +374,18 @@ export default function BibleApp() {
                       {activeVerse === verseKey && <div className="verse-menu">
                         <button onClick={() => toggleFavorite(verse)}>◆ {favorites[verseKey] ? "移除金句" : "加入我的金句"}</button>
                         <button onClick={() => toggleHighlight(verseKey)}>▰ {highlighted.has(verseKey) ? "移除劃記" : "劃記這一節"}</button>
-                        <button onClick={() => { setInsightReference(`${readerBook.name} ${readerChapter}:${verse.number}`); setActiveVerse(null); document.getElementById("insight-editor")?.focus(); }}>✦ 我的亮光</button>
+                        <button onClick={() => { setInsightReference(`${readerBook.name} ${readerChapter}:${verse.number}`); setInsightVerseKey(verseKey); setActiveVerse(null); }}>✦ 我的亮光</button>
                       </div>}
                     </div>
+                    {insightVerseKey === verseKey && <div className="insight-editor inline">
+                      <div><span className="insight-icon">✦</span><div><p className="eyebrow">我的亮光</p><strong>{insightReference}</strong></div><span className={savedNote ? "save-state saved" : "save-state"}>{savedNote ? "已儲存" : "尚未儲存"}</span><button className="insight-close" onClick={() => setInsightVerseKey(null)} aria-label="關閉亮光編輯框">×</button></div>
+                      <textarea id="insight-editor" value={note} onChange={(event) => { setNote(event.target.value); setSavedNote(false); }} aria-label="我的亮光筆記" />
+                      <button onClick={() => { setSavedNote(true); notify("亮光筆記已儲存"); }}>儲存亮光</button>
+                    </div>}
                   </section>;
                 })}
               </div>
-              <div className="reader-complete"><div><span>讀完這一章了嗎？</span><p>完成後會記錄進度並獲得獎勵</p></div><button className={completed.has(`${readerBook.name}-${readerChapter}`) ? "completed" : ""} onClick={() => completeChapter()}>{completed.has(`${readerBook.name}-${readerChapter}`) ? "✓ 已讀完" : "讀完了！"}</button></div>
-              <div className="insight-editor"><div><span className="insight-icon">✦</span><div><p className="eyebrow">我的亮光</p><strong>{insightReference}</strong></div><span className={savedNote ? "save-state saved" : "save-state"}>{savedNote ? "已儲存" : "尚未儲存"}</span></div><textarea id="insight-editor" value={note} onChange={(event) => { setNote(event.target.value); setSavedNote(false); }} aria-label="我的亮光筆記" /><button onClick={() => { setSavedNote(true); notify("亮光筆記已儲存"); }}>儲存亮光</button></div>
+              <div className="reader-complete"><div><span>{completed.has(`${readerBook.name}-${readerChapter}`) ? "這一章已標記完成" : "讀完這一章了嗎？"}</span><p>{completed.has(`${readerBook.name}-${readerChapter}`) ? "如需重讀，可取消已讀標記" : "完成後會記錄進度並獲得獎勵"}</p></div><button className={completed.has(`${readerBook.name}-${readerChapter}`) ? "completed" : ""} onClick={() => completeChapter()}>{completed.has(`${readerBook.name}-${readerChapter}`) ? "取消已讀" : "讀完了！"}</button></div>
             </article>
           </div>
         )}
@@ -406,7 +429,7 @@ export default function BibleApp() {
       {showLogin && <div className="modal-backdrop"><section className="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-title"><button className="modal-close" onClick={() => setShowLogin(false)} aria-label="關閉">×</button><span className="brand-seal large">光</span><p className="eyebrow">保存你的讀經旅程</p><h2 id="login-title">帳號功能準備中</h2><p className="modal-copy">目前可以直接體驗網站，不需要登入。正式帳號將提供 Google 與 Email 兩種方式，並用來同步閱讀進度與私人筆記。</p><button className="login-option disabled" disabled><span>G</span> Google 登入 · 即將推出</button><button className="login-option disabled" disabled><span>@</span> Email 登入 · 即將推出</button></section></div>}
 
       {toast && <div className="toast" role="status">{toast}</div>}
-      <span className="version-badge">v0.2.0</span>
+      <span className="version-badge">v0.2.1</span>
     </div>
   );
 }
