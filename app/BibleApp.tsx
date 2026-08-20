@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 
 type Tab = "home" | "progress" | "read" | "quiz" | "collection";
-type User = { name: string; email: string } | null;
 
 type Book = {
   name: string;
@@ -65,7 +64,7 @@ const navItems: Array<{ id: Tab; label: string; mark: string }> = [
 
 const quizOptions = ["挪亞", "亞伯拉罕", "摩西", "大衛"];
 
-export default function BibleApp({ user, signInPath }: { user: User; signInPath: string }) {
+export default function BibleApp() {
   const [tab, setTab] = useState<Tab>("home");
   const [completed, setCompleted] = useState(() => new Set(["創世記-1", "創世記-2", "創世記-3", "創世記-4", "馬太福音-1", "詩篇-1"]));
   const [openBook, setOpenBook] = useState("創世記");
@@ -136,7 +135,7 @@ export default function BibleApp({ user, signInPath }: { user: User; signInPath:
         <div className="account-actions">
           <div className="currency"><span>✦</span><b>{coins}</b></div>
           <button className="avatar" onClick={() => setShowLogin(true)} aria-label="開啟帳號選單">
-            {user ? user.name.slice(0, 1).toUpperCase() : "旅"}
+            旅
           </button>
         </div>
       </header>
@@ -147,7 +146,7 @@ export default function BibleApp({ user, signInPath }: { user: User; signInPath:
             <section className="welcome-grid">
               <div className="welcome-copy">
                 <p className="eyebrow">{today}</p>
-                <h1>{user ? `${user.name}，平安` : "在話語裡，遇見今日的光"}</h1>
+                <h1>在話語裡，遇見今日的光</h1>
                 <p className="lead">一次讀一章，一點一點累積。讓讀經不只是進度，而是能回頭看見的生命足跡。</p>
                 <div className="hero-actions">
                   <button className="primary" onClick={() => setTab("read")}>繼續讀經 <span>→</span></button>
@@ -284,10 +283,10 @@ export default function BibleApp({ user, signInPath }: { user: User; signInPath:
 
       <nav className="mobile-nav" aria-label="行動版導覽">{navItems.map((item) => <button key={item.id} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)}><span>{item.mark}</span>{item.label}</button>)}</nav>
 
-      {showLogin && <div className="modal-backdrop"><section className="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-title"><button className="modal-close" onClick={() => setShowLogin(false)} aria-label="關閉">×</button><span className="brand-seal large">光</span><p className="eyebrow">保存你的讀經旅程</p><h2 id="login-title">{user ? "帳號已連結" : "登入微光讀經"}</h2>{user ? <><p className="modal-copy">目前以 {user.email} 登入，閱讀資料會安全地與此帳號連結。</p><a className="login-option muted" href="/signout-with-chatgpt?return_to=%2F">登出</a></> : <><p className="modal-copy">初版先使用網站平台的安全帳號登入。Google 與 Email 登入會在身分服務定案後接續加入。</p><a className="login-option chatgpt" href={signInPath}><span>✦</span> 使用 ChatGPT 帳號登入</a><button className="login-option disabled" disabled><span>G</span> Google 登入 · 即將推出</button><button className="login-option disabled" disabled><span>@</span> Email 登入 · 即將推出</button></>}</section></div>}
+      {showLogin && <div className="modal-backdrop"><section className="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-title"><button className="modal-close" onClick={() => setShowLogin(false)} aria-label="關閉">×</button><span className="brand-seal large">光</span><p className="eyebrow">保存你的讀經旅程</p><h2 id="login-title">帳號功能準備中</h2><p className="modal-copy">目前可以直接體驗網站，不需要登入。正式帳號將提供 Google 與 Email 兩種方式，並用來同步閱讀進度與私人筆記。</p><button className="login-option disabled" disabled><span>G</span> Google 登入 · 即將推出</button><button className="login-option disabled" disabled><span>@</span> Email 登入 · 即將推出</button></section></div>}
 
       {toast && <div className="toast" role="status">{toast}</div>}
-      <span className="version-badge">v0.1.0</span>
+      <span className="version-badge">v0.1.2</span>
     </div>
   );
 }

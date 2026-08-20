@@ -27,8 +27,8 @@ test("renders the 微光讀經 initial experience", async () => {
   assert.match(html, /在話語裡，遇見今日的光/);
   assert.match(html, /讀經進度/);
   assert.match(html, /今日小測驗/);
-  assert.match(html, /v0\.1\.0/);
-  assert.doesNotMatch(html, /codex-preview|Building your site|react-loading-skeleton/i);
+  assert.match(html, /v0\.1\.2/);
+  assert.doesNotMatch(html, /codex-preview|Building your site|react-loading-skeleton|ChatGPT/i);
 });
 
 test("keeps version, metadata, database, and social preview artifacts", async () => {
@@ -40,7 +40,7 @@ test("keeps version, metadata, database, and social preview artifacts", async ()
     readFile(new URL("app/layout.tsx", projectRoot), "utf8"),
   ]);
 
-  assert.equal(version.trim(), "0.1.0");
+  assert.equal(version.trim(), "0.1.2");
   assert.match(packageJson, /"name": "light-in-the-word"/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
   assert.match(hosting, /"d1": "DB"/);

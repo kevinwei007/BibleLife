@@ -266,7 +266,6 @@ h1, h2, blockquote { font-family: "Noto Serif TC", "PMingLiU", serif; }
 .login-modal h2 { margin: 6px 0 10px; font-size: 28px; }
 .modal-copy { margin: 0 0 25px; color: var(--muted); font-size: 12px; line-height: 1.7; }
 .login-option { width: 100%; min-height: 49px; margin-top: 10px; padding: 0 17px; display: flex; justify-content: center; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 10px; background: white; color: var(--ink); font-size: 12px; font-weight: 700; text-decoration: none; cursor: pointer; }
-.login-option.chatgpt { border-color: var(--moss-dark); background: var(--moss-dark); color: white; }
 .login-option.disabled { color: #a4aaa5; cursor: not-allowed; }.login-option.muted { background: var(--paper); }
 .toast { position: fixed; z-index: 120; left: 50%; bottom: 35px; padding: 13px 20px; border-radius: 99px; background: var(--ink); color: white; font-size: 11px; box-shadow: var(--shadow); transform: translateX(-50%); animation: toast-in .2s ease-out; }
 .version-badge { position: fixed; z-index: 20; right: 12px; bottom: 10px; color: rgba(47,75,58,.5); font-size: 9px; letter-spacing: .08em; }
